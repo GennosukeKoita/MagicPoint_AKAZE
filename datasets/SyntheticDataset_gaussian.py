@@ -187,12 +187,6 @@ class SyntheticDataset_gaussian(data.Dataset):
             image: tensor(1, H, W)
         """
 
-        def checkSat(img, name=""):
-            if img.max() > 1:
-                print(name, img.max())
-            elif img.min() < 0:
-                print(name, img.min())
-
         def imgPhotometric(img):
             """
 

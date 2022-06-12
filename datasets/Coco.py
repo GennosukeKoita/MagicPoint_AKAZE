@@ -65,8 +65,6 @@ class Coco(data.Dataset):
         self.labels = False
         if self.config['labels']:
             self.labels = True
-            # from models.model_wrap import labels2Dto3D
-            # self.labels2Dto3D = labels2Dto3D
             print("load labels from: ", self.config['labels']+'/'+task)
             count = 0
             for (img, name) in zip(files['image_paths'], files['names']):
@@ -167,12 +165,7 @@ class Coco(data.Dataset):
             input_image = input_image.astype('float32') / 255.0
             return input_image
 
-        def _preprocess(image):
-            if self.transforms is not None:
-                image = self.transforms(image)
-            return image
-
-        def get_labels_gaussian(pnts, subpixel=False):
+        def get_labels_gaussian(pnts, subpixel=False): # いらないかも
             heatmaps = np.zeros((H, W))
             if subpixel:
                 print("pnt: ", pnts.shape)
@@ -195,12 +188,6 @@ class Coco(data.Dataset):
 
 
         from datasets.data_tools import np_to_tensor
-
-        # def np_to_tensor(img, H, W):
-        #     img = torch.tensor(img).type(torch.FloatTensor).view(-1, H, W)
-        #     return img
-
-
         from datasets.data_tools import warpLabels
 
         def imgPhotometric(img):
@@ -243,17 +230,15 @@ class Coco(data.Dataset):
         valid_mask = self.compute_valid_mask(torch.tensor([H, W]), inv_homography=torch.eye(3))
         input.update({'image': img_aug, 'image_2D': img_aug, 'valid_mask': valid_mask})
 
-        if self.config['homography_adaptation']['enable']:
+        if self.config['homography_adaptation']['enable']: # ホモグラフィックアダプテーションの実行
             # img_aug = torch.tensor(img_aug)
             homoAdapt_iter = self.config['homography_adaptation']['num']
             homographies = np.stack([self.sample_homography(np.array([2, 2]), shift=-1,
                            **self.config['homography_adaptation']['homographies']['params'])
-                           for i in range(homoAdapt_iter)])
+                           for _ in range(homoAdapt_iter)])
             ##### use inverse from the sample homography
             homographies = np.stack([inv(homography) for homography in homographies])
             homographies[0,:,:] = np.identity(3)
-            # homographies_id = np.stack([homographies_id, homographies])[:-1,...]
-
             ######
 
             homographies = torch.tensor(homographies, dtype=torch.float32)
@@ -263,18 +248,17 @@ class Coco(data.Dataset):
             warped_img = self.inv_warp_image_batch(img_aug.squeeze().repeat(homoAdapt_iter,1,1,1), inv_homographies, mode='bilinear').unsqueeze(0)
             warped_img = warped_img.squeeze()
             # masks
-            valid_mask = self.compute_valid_mask(torch.tensor([H, W]), inv_homography=inv_homographies,
-                                                 erosion_radius=self.config['augmentation']['homographic'][
-                                                     'valid_border_margin'])
+            valid_mask = self.compute_valid_mask(
+                torch.tensor([H, W]),
+                inv_homography=inv_homographies,
+                erosion_radius=self.config['augmentation']['homographic']['valid_border_margin']
+            )
             input.update({'image': warped_img, 'valid_mask': valid_mask, 'image_2D':img_aug})
             input.update({'homographies': homographies, 'inv_homographies': inv_homographies})
 
         # laebls
-        if self.labels:
+        if self.labels: 
             pnts = np.load(sample['points'])['pts']
-            # pnts = pnts.astype(int)
-            # labels = np.zeros_like(img_o)
-            # labels[pnts[:, 1], pnts[:, 0]] = 1
             labels = points_to_2D(pnts, H, W)
             labels_2D = to_floatTensor(labels[np.newaxis,:,:])
             input.update({'labels_2D': labels_2D})
@@ -284,21 +268,18 @@ class Coco(data.Dataset):
             input.update({'labels_res': labels_res})
 
             if (self.enable_homo_train == True and self.action == 'train') or (self.enable_homo_val and self.action == 'val'):
-                homography = self.sample_homography(np.array([2, 2]), shift=-1,
-                                                    **self.config['augmentation']['homographic']['params'])
-
+                homography = self.sample_homography(
+                    np.array([2, 2]),
+                    shift=-1,
+                    **self.config['augmentation']['homographic']['params']
+                )
                 ##### use inverse from the sample homography
                 homography = inv(homography)
                 ######
-
                 inv_homography = inv(homography)
                 inv_homography = torch.tensor(inv_homography).to(torch.float32)
                 homography = torch.tensor(homography).to(torch.float32)
-                #                 img = torch.from_numpy(img)
                 warped_img = self.inv_warp_image(img_aug.squeeze(), inv_homography, mode='bilinear').unsqueeze(0)
-                # warped_img = warped_img.squeeze().numpy()
-                # warped_img = warped_img[:,:,np.newaxis]
-
                 ##### check: add photometric #####
 
                 # labels = torch.from_numpy(labels)
@@ -306,15 +287,13 @@ class Coco(data.Dataset):
                 ##### check #####
                 warped_set = warpLabels(pnts, H, W, homography)
                 warped_labels = warped_set['labels']
-                # if self.transform is not None:
-                    # warped_img = self.transform(warped_img)
                 valid_mask = self.compute_valid_mask(torch.tensor([H, W]), inv_homography=inv_homography,
                             erosion_radius=self.config['augmentation']['homographic']['valid_border_margin'])
 
                 input.update({'image': warped_img, 'labels_2D': warped_labels, 'valid_mask': valid_mask})
 
 
-            if self.config['warped_pair']['enable']:
+            if self.config['warped_pair']['enable']: # 画像ペアの作成
                 homography = self.sample_homography(np.array([2, 2]), shift=-1,
                                            **self.config['warped_pair']['params'])
 
@@ -334,7 +313,6 @@ class Coco(data.Dataset):
                 if (self.enable_photo_train == True and self.action == 'train') or (self.enable_photo_val and self.action == 'val'):
                     warped_img = imgPhotometric(warped_img.numpy().squeeze()) # numpy array (H, W, 1)
                     warped_img = torch.tensor(warped_img, dtype=torch.float32)
-                    pass
                 warped_img = warped_img.view(-1, H, W)
 
                 # warped_labels = warpLabels(pnts, H, W, homography)
@@ -361,10 +339,6 @@ class Coco(data.Dataset):
                             erosion_radius=self.config['warped_pair']['valid_border_margin'])  # can set to other value
                 input.update({'warped_valid_mask': valid_mask})
                 input.update({'homographies': homography, 'inv_homographies': inv_homography})
-
-            # labels = self.labels2Dto3D(self.cell_size, labels)
-            # labels = torch.from_numpy(labels[np.newaxis,:,:])
-            # input.update({'labels': labels})
 
             if self.gaussian_label:
                 # warped_labels_gaussian = get_labels_gaussian(pnts)

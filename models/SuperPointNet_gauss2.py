@@ -134,7 +134,7 @@ def main():
 
 
     # check keras-like model summary using torchsummary
-    from torchsummary import summary
+    from torchinfo import summary
     summary(model, input_size=(1, 240, 320))
 
     ## test

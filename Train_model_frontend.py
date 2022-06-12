@@ -20,7 +20,6 @@ from utils.utils import saveImg, precisionRecall_torch, save_checkpoint
 from pathlib import Path
 
 #####test#####
-import cv2
 import matplotlib.pyplot as plt
 
 def thd_img(img, thd=0.015):
@@ -111,40 +110,9 @@ class Train_model_frontend(object):
         if self.config["model"]["subpixel"]["enable"]:
             ## deprecated: only for testing subpixel prediction
             self.subpixel = True
-
-            def get_func(path, name):
-                logging.info("=> from %s import %s", path, name)
-                mod = __import__("{}".format(path), fromlist=[""])
-                return getattr(mod, name)
-
-            self.subpixel_loss_func = get_func(
-                "utils.losses", self.config["model"]["subpixel"]["loss_func"]
-            )
-
-        # load model
-        # self.net = self.loadModel(*config['model'])
-        self.printImportantConfig()
-
-        pass
-
-    def printImportantConfig(self):
-        """
-        # print important configs
-        :return:
-        """
-        print("=" * 10, " check!!! ", "=" * 10)
-
-        print("learning_rate: ", self.config["model"]["learning_rate"])
-        print("lambda_loss: ", self.config["model"]["lambda_loss"])
-        print("detection_threshold: ", self.config["model"]["detection_threshold"])
-        print("batch_size: ", self.config["model"]["batch_size"])
-
-        print("=" * 10, " descriptor: ", self.desc_loss_type, "=" * 10)
-        for item in list(self.desc_params):
-            print(item, ": ", self.desc_params[item])
-
-        print("=" * 32)
-        pass
+            logging.info(f'=> from utils.losses import {self.config["model"]["subpixel"]["loss_func"]}')
+            mod = __import__(f'utils.losses')
+            self.subpixel_loss_func = getattr(mod, self.config["model"]["subpixel"]["loss_func"])
 
     def dataParallel(self):
         """
@@ -156,15 +124,8 @@ class Train_model_frontend(object):
         self.optimizer = self.adamOptim(
             self.net, lr=self.config["model"]["learning_rate"]
         )
-        pass
 
     def adamOptim(self, net, lr):
-        """
-        initiate adam optimizer
-        :param net: network structure
-        :param lr: learning rate
-        :return:
-        """
         print("adam optimizer")
         import torch.optim as optim
 
@@ -192,23 +153,19 @@ class Train_model_frontend(object):
         else:
             path = self.config["pretrained"]
             mode = "" if path[-4:] == ".pth" else "full" # the suffix is '.pth' or 'tar.gz'
-            logging.info("load pretrained model from: %s", path)
+            logging.info(f'load pretrained model from: {path}')
             net, optimizer, n_iter = pretrainedLoader(
                 net, optimizer, n_iter, path, mode=mode, full_path=True
             )
-            logging.info("successfully load pretrained model from: %s", path)
-
-        def setIter(n_iter):
-            if self.config["reset_iter"]:
-                logging.info("reset iterations to 0")
-                n_iter = 0
-            return n_iter
+            logging.info(f'successfully load pretrained model from: {path}')
 
         self.net = net
         self.optimizer = optimizer
         if n_iter == 0:
             # はじめから学習する場合
-            self.n_iter = setIter(n_iter)
+            if self.config["reset_iter"]:
+                logging.info("reset iterations to 0")
+                self.n_iter = 0
         else:
             # 学習済みモデルの続きから学習する場合
             self.n_iter = n_iter
@@ -254,16 +211,9 @@ class Train_model_frontend(object):
         self._val_loader = loader
 
     def train(self, **options):
-        """
-        # outer loop for training
-        # control training and validation pace
-        # stop when reaching max iterations
-        :param options:
-        :return:
-        """
         # training info
-        logging.info("n_iter: %d", self.n_iter)
-        logging.info("max_iter: %d", self.max_iter)
+        logging.info(f'n_iter: {self.n_iter}')
+        logging.info(f'max_iter: {self.max_iter}')
         running_losses = []
         epoch = 0
         # Train one epoch
@@ -271,18 +221,18 @@ class Train_model_frontend(object):
             print("epoch: ", epoch)
             epoch += 1
             for _, sample_train in tqdm(enumerate(self.train_loader)):
-                fig = plt.figure()
-                ax1 = fig.add_subplot(3,1,1)
-                ax1.set_title("img",fontsize=20)
-                plt.imshow(sample_train['image'].numpy()[0][0])
-                ax2 = fig.add_subplot(3,1,2)
-                ax2.set_title("img2",fontsize=20)
-                plt.imshow(sample_train['image'].numpy()[1][0])
-                ax3 = fig.add_subplot(3,1,3)
-                ax3.set_title("img3",fontsize=20)
-                plt.imshow(sample_train['image'].numpy()[2][0])
-                plt.show()
-                exit()
+                # fig = plt.figure()
+                # ax1 = fig.add_subplot(3,1,1)
+                # ax1.set_title("img",fontsize=20)
+                # plt.imshow(sample_train['image'].numpy()[0][0])
+                # ax2 = fig.add_subplot(3,1,2)
+                # ax2.set_title("img2",fontsize=20)
+                # plt.imshow(sample_train['image'].numpy()[1][0])
+                # ax3 = fig.add_subplot(3,1,3)
+                # ax3.set_title("img3",fontsize=20)
+                # plt.imshow(sample_train['image'].numpy()[2][0])
+                # plt.show()
+                # exit()
                 # train one sample
                 loss_out = self.train_val_sample(sample_train, self.n_iter, True)
                 self.n_iter += 1
@@ -297,15 +247,12 @@ class Train_model_frontend(object):
                 # save model
                 if self.n_iter % self.config["save_interval"] == 0:
                     logging.info(
-                        "save model: every %d interval, current iteration: %d",
-                        self.config["save_interval"],
-                        self.n_iter,
-                    )
+                        f'save model: every {self.config["save_interval"]} interval, current iteration: {self.n_iter}')
                     self.saveModel()
                 # ending condition
                 if self.n_iter > self.max_iter:
                     # end training
-                    logging.info("End training: %d", self.n_iter)
+                    logging.info(f'End training: {self.n_iter}')
                     break
 
     def getLabels(self, labels_2D, cell_size, device="cpu"):
@@ -349,10 +296,6 @@ class Train_model_frontend(object):
         :return:
         """
         loss_func = nn.CrossEntropyLoss(reduce=False).to(device)
-        # if self.config['data']['gaussian_label']['enable']:
-        #     loss = loss_func_BCE(nn.functional.softmax(semi, dim=1), labels3D_in_loss)
-        #     loss = (loss.sum(dim=1) * mask_3D_flattened).sum()
-        # else:
         loss = loss_func(semi, labels3D_in_loss)
         loss = (loss * mask_3D_flattened).sum()
         loss = loss / (mask_3D_flattened.sum() + 1e-10)
@@ -377,19 +320,13 @@ class Train_model_frontend(object):
             sample["labels_2D"],
             sample["valid_mask"],
         )
-        # img, labels = img.to(self.device), labels_2D.to(self.device)
 
         # variables
         batch_size, H, W = img.shape[0], img.shape[2], img.shape[3]
         self.batch_size = batch_size
         # print("batch_size: ", batch_size)
-        Hc = H // self.cell_size
-        Wc = W // self.cell_size
 
         # warped images
-        # img_warp, labels_warp_2D, mask_warp_2D = sample['warped_img'].to(self.device), \
-        #     sample['warped_labels'].to(self.device), \
-        #     sample['warped_valid_mask'].to(self.device)
         img_warp, labels_warp_2D, mask_warp_2D = (
             sample["warped_img"],
             sample["warped_labels"],
@@ -397,8 +334,6 @@ class Train_model_frontend(object):
         )
 
         # homographies
-        # mat_H, mat_H_inv = \
-        # sample['homographies'].to(self.device), sample['inv_homographies'].to(self.device)
         mat_H, mat_H_inv = sample["homographies"], sample["inv_homographies"]
 
         # zero the parameter gradients
@@ -449,7 +384,6 @@ class Train_model_frontend(object):
 
         # descriptor loss
 
-        # if self.desc_loss_type == 'dense':
         loss_desc, mask, positive_dist, negative_dist = self.descriptor_loss(
             coarse_desc,
             coarse_desc_warp,
@@ -786,9 +720,6 @@ class Train_model_frontend(object):
             ] = 1
 
             label_sample = torch.squeeze(labels_2D[idx, :, :, :])
-            # pts_nms = getPtsFromHeatmap(label_sample.numpy(), conf_thresh, nms_dist)
-            # label_sample_rms_sample = np.zeros_like(label_sample.numpy())
-            # label_sample_rms_sample[pts_nms[1, :].astype(np.int), pts_nms[0, :].astype(np.int)] = 1
             label_sample_nms_sample = label_sample
 
             if idx < 5:
@@ -875,10 +806,6 @@ class Train_model_frontend(object):
     ######## static methods ########
     @staticmethod
     def input_to_imgDict(sample, tb_images_dict):
-        # for e in list(sample):
-        #     print("sample[e]", sample[e].shape)
-        #     if (sample[e]).dim() == 4:
-        #         tb_images_dict[e] = sample[e]
         for e in list(sample):
             element = sample[e]
             if type(element) is torch.Tensor:
@@ -901,7 +828,7 @@ class Train_model_frontend(object):
         dense_desc = norm_desc(dense_desc)
         return dense_desc
 
-
+# 動作確認
 if __name__ == "__main__":
     # load config
     filename = "configs/superpoint_coco_test.yaml"

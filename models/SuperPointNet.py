@@ -2,85 +2,6 @@ import torch
 import torch.nn as nn
 from torch.nn.init import xavier_uniform_, zeros_
 
-# class SuperPointNet(torch.nn.Module):
-#   """ Pytorch definition of SuperPoint Network. """
-
-#   def vgg_block(self, filters_in, filters_out, kernel_size, padding, name, batch_normalization=True, relu=True, kernel_reg=0., **params):
-#     modules = [nn.Conv2d(filters_in, filters_out, kernel_size=kernel_size, stride=1, padding=padding)]
-#     if batch_normalization:
-#         modules.append(nn.BatchNorm2d(filters_out))
-#     if relu:
-#         modules.append(self.relu)
-#     else:
-#         print('NO RELU!!!!!!!!!!!!!!!')
-#     return nn.Sequential(*modules)
-
-#     # x2 = conv_layer(inputs) ## HOW TO IMPLEMENT KERNEL REG?
-#     # if relu:
-#     #     x2 = self.relu(x2)
-#     # else:
-#     #     print('NO RELU!!!!!!!!!!!!!!!')
-#     # if batch_normalization:
-#     #     x2 = nn.BatchNorm2d(filters_out)(x2)
-#     # return x2
-
-#   def __init__(self):
-#     super(SuperPointNet, self).__init__()
-#     self.relu = nn.ReLU(inplace=True)
-#     self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-
-#     params_conv = {'batch_normalization': False, 'relu': True, 'kernel_reg': 0.}
-
-#     self.conv1_1 = self.vgg_block(1, 64, 3, 1, 'conv1_1', **params_conv)
-#     self.conv1_2 = self.vgg_block(64, 64, 3, 1, 'conv1_2', **params_conv)
-
-#     self.conv2_1 = self.vgg_block(64, 64, 3, 1, 'conv2_1', **params_conv)
-#     self.conv2_2 = self.vgg_block(64, 64, 3, 1, 'conv2_2', **params_conv)
-
-#     self.conv3_1 = self.vgg_block(64, 128, 3, 1, 'conv3_1', **params_conv)
-#     self.conv3_2 = self.vgg_block(128, 128, 3, 1, 'conv3_2', **params_conv)
-
-#     self.conv4_1 = self.vgg_block(128, 128, 3, 1, 'conv4_1', **params_conv)
-#     self.conv4_2 = self.vgg_block(128, 128, 3, 1, 'conv4_2', **params_conv)
-
-#     # Detector Head.
-#     self.det_conv1_1 = self.vgg_block(128, 256, 3, 1, 'det_conv1_1', **params_conv)
-#     self.det_conv1_2 = self.vgg_block(256, 65, 1, 0, 'det_conv1_2', batch_normalization=False, relu=False)
-
-#     # Descriptor Head.
-#     self.des_conv1_1 = self.vgg_block(128, 256, 3, 1, 'des_conv1_1', **params_conv)
-#     self.des_conv1_2 = self.vgg_block(256, 256, 1, 0, 'des_conv1_2', batch_normalization=False, relu=False)
-#     # desc = nn.functional.normalize(desc, p=2, dim=1)
-
-#   def forward(self, x):
-#     """ Forward pass that jointly computes unprocessed point and descriptor
-#     tensors.
-#     Input
-#       x: Image pytorch tensor shaped N x 1 x H x W.
-#     Output
-#       semi: Output point pytorch tensor shaped N x 65 x H/8 x W/8.
-#       desc: Output descriptor pytorch tensor shaped N x 256 x H/8 x W/8.
-#     """
-#     # Shared Encoder.
-#     # print(x.size(), '!!!!!!!!!!!')
-#     x = self.pool(self.conv1_2(self.conv1_1(x)))
-#     # print(x.size(), self.conv1_1(x).size(), '!!!!!!!!!!!')
-#     x = self.pool(self.conv2_2(self.conv2_1(x)))
-#     x = self.pool(self.conv3_2(self.conv3_1(x)))
-#     x = self.conv4_2(self.conv4_1(x))
-#     # Detector Head.
-#     semi = self.det_conv1_2(self.det_conv1_1(x))
-#     # print(semi.size(), '!!!!!!!!!!!')
-#     # Descriptor Head.
-#     desc = self.des_conv1_2(self.des_conv1_1(x))
-#     desc = nn.functional.normalize(desc, p=2, dim=1)
-
-#     return semi, desc
-
-# ###############################
-
-
-
 class SuperPointNet(torch.nn.Module):
   """ Pytorch definition of SuperPoint Network. """
   def __init__(self):
@@ -255,10 +176,6 @@ def forward_original(self, x):
     desc = desc.div(torch.unsqueeze(dn, 1)) # Divide by norm to normalize.
     return semi, desc
 
-
-
-
-
 ###############################
 
 def conv(in_planes, out_planes, kernel_size=3):
@@ -274,15 +191,10 @@ def upconv(in_planes, out_planes):
         nn.ReLU(inplace=True)
     )
 
-
-
-
 if __name__ == '__main__':
-
-  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-  model = SuperPointNet()
-  model = model.to(device)
-
-  # check keras-like model summary using torchsummary
-  from torchsummary import summary
-  summary(model, input_size=(1, 224, 224))
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = SuperPointNet()
+    model = model.to(device)
+    # check keras-like model summary using torchsummary
+    from torchinfo import summary
+    summary(model, input_size=(1, 224, 224))

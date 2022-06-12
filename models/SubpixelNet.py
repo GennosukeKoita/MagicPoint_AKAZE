@@ -1,4 +1,4 @@
-"""Old version of SuperpointNet. Use it together with 
+"""Old version of SuperpointNet. Use it together with
 logs/magicpoint_synth20/checkpoints/superPointNet_200000_checkpoint.pth.tar
 
 """
@@ -9,10 +9,13 @@ from torch.nn.init import xavier_uniform_, zeros_
 from models.unet_parts import *
 
 # from models.SubpixelNet import SubpixelNet
+
+
 class SubpixelNet(torch.nn.Module):
-  """ Pytorch definition of SuperPoint Network. """
-  def __init__(self, subpixel_channel=1):
-    super(SubpixelNet, self).__init__()
+    """ Pytorch definition of SuperPoint Network. """
+
+    def __init__(self, subpixel_channel=1):
+      super(SubpixelNet, self).__init__()
     c1, c2, c3, c4, c5, d1 = 64, 64, 128, 128, 256, 256
     det_h = 65
     self.inc = inconv(1, c1)
@@ -29,7 +32,8 @@ class SubpixelNet(torch.nn.Module):
     # Detector Head.
     self.convPa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
     self.bnPa = nn.BatchNorm2d(c5)
-    self.convPb = torch.nn.Conv2d(c5, det_h, kernel_size=1, stride=1, padding=0)
+    self.convPb = torch.nn.Conv2d(
+        c5, det_h, kernel_size=1, stride=1, padding=0)
     self.bnPb = nn.BatchNorm2d(det_h)
     # Descriptor Head.
     self.convDa = torch.nn.Conv2d(c4, c5, kernel_size=3, stride=1, padding=1)
@@ -90,12 +94,11 @@ class SubpixelNet(torch.nn.Module):
 
 
 if __name__ == '__main__':
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = SubpixelNet()
+    model = model.to(device)
 
-  device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-  model = SubpixelNet()
-  model = model.to(device)
 
-
-  # check keras-like model summary using torchsummary
-  from torchsummary import summary
-  summary(model, input_size=(1, 240, 320))
+    # check keras-like model summary using torchsummary
+    from torchinfo import summary
+    summary(model, input_size=(1, 240, 320))
