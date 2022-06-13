@@ -5,7 +5,7 @@ Author: You-Yi Jau, Rui Zhu
 Date: 2019/12/12
 """
 
-from utils.loader import get_save_path
+from utils.loader import get_save_path, get_module
 import argparse
 import yaml
 import os
@@ -18,8 +18,6 @@ import torch.utils.data
 from tensorboardX import SummaryWriter
 from utils.utils import getWriterPath
 from settings import EXPER_PATH
-
-# loaders: data, model, pretrained model
 from utils.loader import dataLoader
 from utils.logging import *
 
@@ -27,9 +25,8 @@ from utils.logging import *
 
 
 def datasize(train_loader, config, tag='train'):
-    logging.info('== %s split size %d in %d batches' %
-                 (tag, len(train_loader)*config['model']['batch_size'], len(train_loader)))
-    pass
+    split_size = len(train_loader)*config['model']['batch_size']
+    logging.info(f'== {tag} split size {split_size} in {len(train_loader)} batches')
 
 
 ###### util functions end ######
@@ -42,38 +39,30 @@ def train_base(config, output_dir, args):
 
 def train_joint(config, output_dir, args):
     assert 'train_iter' in config
-    
     # torch.set_default_tensor_type：テンソルを作成する際にデバイスを指定しないときに使う.デフォルトはcpu,gpuが積んでいる場合はgpuになる。
     torch.set_default_tensor_type(torch.FloatTensor)
     task = config['data']['dataset']
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    logging.info('train on device: %s', device)
+    logging.info(f'train on device: {device}')
     with open(os.path.join(output_dir, 'config.yml'), 'w') as f:
         yaml.dump(config, f, default_flow_style=False)
     # tensorboard.summaryWriter:グラフの描画に使用するもの.
-    writer = SummaryWriter(
-        getWriterPath(task=args.command, exper_name=args.exper_name, date=True))
-    # checkpointを保存するディレクトリのパスが返される
+    writer = SummaryWriter(getWriterPath(task=args.command, exper_name=args.exper_name, date=True))
+    # 学習済みモデルの保存先ディレクトリのパス
     save_path = get_save_path(output_dir)
 
-    # 学習、評価データのロード
+    # 学習、評価データセット作成
     data = dataLoader(config, dataset=task, warp_input=True)
     train_loader, val_loader = data['train_loader'], data['val_loader']
     datasize(train_loader, config, tag='train')
     datasize(val_loader, config, tag='val')
 
     # init the training agent using config file
-    from utils.loader import get_module
     train_model_frontend = get_module('', config['front_end_model'])
-    train_agent = train_model_frontend(
-        config, save_path=save_path, device=device)
-
-    # writer from tensorboard
+    train_agent = train_model_frontend(config, save_path=save_path, device=device)
     train_agent.writer = writer
-    # feed the data into the agent
     train_agent.train_loader = train_loader
     train_agent.val_loader = val_loader
-    # load model initiates the model and load the pretrained model (if any)
     train_agent.loadModel()
     train_agent.dataParallel()
 
@@ -83,7 +72,6 @@ def train_joint(config, output_dir, args):
     except KeyboardInterrupt:
         print("press ctrl + c, save model!")
         train_agent.saveModel()
-        pass
 
 
 if __name__ == '__main__':
@@ -98,7 +86,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers(dest='command')
 
-    # Training magicpoint command
+    # MagicPointの学習コマンド
     p_train = subparsers.add_parser('train_base')
     p_train.add_argument('config', type=str)
     p_train.add_argument('exper_name', type=str)
@@ -107,7 +95,7 @@ if __name__ == '__main__':
                          help='turn on debuging mode')
     p_train.set_defaults(func=train_base)
 
-    # Training superpoint command
+    # SuperPointの学習コマンド
     p_train = subparsers.add_parser('train_joint')
     p_train.add_argument('config', type=str)
     p_train.add_argument('exper_name', type=str)
@@ -124,8 +112,7 @@ if __name__ == '__main__':
 
     with open(args.config, 'r') as f:
         config = yaml.safe_load(f)
-    # EXPER_PATH from settings.py
     output_dir = os.path.join(EXPER_PATH, args.exper_name)
     os.makedirs(output_dir, exist_ok=True)
-    logging.info('Running command {}'.format(args.command.upper()))
+    logging.info(f'Running command {args.command.upper()}')
     args.func(config, output_dir, args)

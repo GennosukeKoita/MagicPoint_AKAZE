@@ -362,20 +362,12 @@ class Train_model_frontend(object):
         ## get labels, masks, loss for detection
         labels3D_in_loss = self.getLabels(labels_2D, self.cell_size, device=self.device)
         mask_3D_flattened = self.getMasks(mask_2D, self.cell_size, device=self.device)
-        loss_det = self.get_loss(
-            semi, labels3D_in_loss, mask_3D_flattened, device=self.device
-        )
+        loss_det = self.get_loss(semi, labels3D_in_loss, mask_3D_flattened, device=self.device)
 
         ## warping
-        labels3D_in_loss = self.getLabels(
-            labels_warp_2D, self.cell_size, device=self.device
-        )
-        mask_3D_flattened = self.getMasks(
-            mask_warp_2D, self.cell_size, device=self.device
-        )
-        loss_det_warp = self.get_loss(
-            semi_warp, labels3D_in_loss, mask_3D_flattened, device=self.device
-        )
+        labels3D_in_loss = self.getLabels(labels_warp_2D, self.cell_size, device=self.device)
+        mask_3D_flattened = self.getMasks(mask_warp_2D, self.cell_size, device=self.device)
+        loss_det_warp = self.get_loss(semi_warp, labels3D_in_loss, mask_3D_flattened, device=self.device)
 
         mask_desc = mask_3D_flattened.unsqueeze(1)
 
@@ -393,9 +385,7 @@ class Train_model_frontend(object):
             **self.desc_params
         )
 
-        loss = (
-            loss_det + loss_det_warp + self.config["model"]["lambda_loss"] * loss_desc
-        )
+        loss = (loss_det + loss_det_warp + self.config["model"]["lambda_loss"] * loss_desc)
 
         if self.subpixel:
             # coarse to dense descriptor
