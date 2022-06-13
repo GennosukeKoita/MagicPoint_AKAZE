@@ -242,7 +242,8 @@ class SyntheticDataset_gaussian(data.Dataset):
             # print("Run Photometric!!")
             img = imgPhotometric(img)
         else:
-            print("Don't Run Photometric!!")
+            # print("Don't Run Photometric!!")
+            pass
 
         if not ((
             self.config["augmentation"]["homographic"]["enable_train"] and self.action == "training"
@@ -303,7 +304,7 @@ class SyntheticDataset_gaussian(data.Dataset):
             # warped_labels_gaussian = get_labels_gaussian(pnts)
             from datasets.data_tools import get_labels_bi
 
-            print("Run gaussian label!!")
+            # print("Run gaussian label!!")
             labels_2D_bi = get_labels_bi(pnts_post, H, W)
             labels_gaussian = self.gaussian_blur(squeezeToNumpy(labels_2D_bi))
             labels_gaussian = np_to_tensor(labels_gaussian, H, W)
@@ -317,7 +318,7 @@ class SyntheticDataset_gaussian(data.Dataset):
         if self.config["warped_pair"]["enable"]:
             from datasets.data_tools import warpLabels
 
-            print("Run warp pair!!")
+            # print("Run warp pair!!")
             homography = self.sample_homography(
                 np.array([2, 2]), shift=-1, **self.config["warped_pair"]["params"]
             )

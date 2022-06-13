@@ -104,7 +104,7 @@ class Train_model_heatmap(Train_model_frontend):
 
         # load model
         # self.net = self.loadModel(*config['model'])
-        self.printImportantConfig()
+        # self.printImportantConfig()
         pass
 
     ### loadModelはTrain_model_frontendに継承されているためここではコード不要
