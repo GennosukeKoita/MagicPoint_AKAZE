@@ -35,16 +35,17 @@ from settings import EXPER_PATH
 #### util functions
 
 
-def combine_heatmap(heatmap, inv_homographies, mask_2D, device="cpu"):
+def combine_heatmap(heatmap, inv_homographies, mask_2D, homoadapt_enable, device="cpu"):
     ## multiply heatmap with mask_2D
     heatmap = heatmap * mask_2D
-    heatmap = inv_warp_image_batch(
-        heatmap, inv_homographies[0, :, :, :], device=device, mode="bilinear"
-    )
-    ##### check
-    mask_2D = inv_warp_image_batch(
-        mask_2D, inv_homographies[0, :, :, :], device=device, mode="bilinear"
-    )
+    if homoadapt_enable:
+        heatmap = inv_warp_image_batch(
+            heatmap, inv_homographies[0, :, :, :], device=device, mode="bilinear"
+        )
+        ##### check
+        mask_2D = inv_warp_image_batch(
+            mask_2D, inv_homographies[0, :, :, :], device=device, mode="bilinear"
+        )
     heatmap = torch.sum(heatmap, dim=0)
     mask_2D = torch.sum(mask_2D, dim=0)
     return heatmap / mask_2D
@@ -265,16 +266,23 @@ def export_detector_homoAdapt_gpu(config, output_dir, args):
         img = img.transpose(0, 1)
         img_2D = sample["image_2D"].numpy().squeeze()
         mask_2D = mask_2D.transpose(0, 1)
-        inv_homographies, homographies = (
-            sample["homographies"],
-            sample["inv_homographies"],
-        )
-        img, mask_2D, homographies, inv_homographies = (
-            img.to(device),
-            mask_2D.to(device),
-            homographies.to(device),
-            inv_homographies.to(device),
-        )
+        if homoadapt_enable:
+            inv_homographies, homographies = (
+                sample["homographies"],
+                sample["inv_homographies"],
+            )
+            img, mask_2D, homographies, inv_homographies = (
+                img.to(device),
+                mask_2D.to(device),
+                homographies.to(device),
+                inv_homographies.to(device),
+            )
+        else:
+            img, mask_2D = (
+                img.to(device),
+                mask_2D.to(device)
+            )
+            homographies, inv_homographies = None, None
         # sample = test_set[i]
         name = sample["name"][0]
         logging.info(f"name: {name}")
@@ -286,7 +294,7 @@ def export_detector_homoAdapt_gpu(config, output_dir, args):
 
         # pass through network
         heatmap = fe.run(img, onlyHeatmap=True, train=False)
-        outputs = combine_heatmap(heatmap, inv_homographies, mask_2D, device=device)
+        outputs = combine_heatmap(heatmap, inv_homographies, mask_2D, homoadapt_enable, device=device)
         pts = fe.getPtsFromHeatmap(outputs.detach().cpu().squeeze())  # (x,y, prob)
         # サブピクセル実行前の特徴点検出数
         print("Before Subpixel outputs: ", outputs.shape)

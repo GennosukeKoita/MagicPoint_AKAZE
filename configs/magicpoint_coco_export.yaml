@@ -13,7 +13,8 @@ data:
         photometric:
             enable: false
     homography_adaptation:
-        enable: false
+        enable: true
+        # enable: false
         num: 100 # 100
         aggregation: 'sum'
         filter_counts: 0
@@ -43,8 +44,9 @@ model:
     nms: 4
     top_k: 600
     subpixel:
-        enable: true
+        # enable: true
+        enable: false
 
-# pretrained: 'logs/magicpoint_synth_akaze/checkpoints/superPointNet_50000_checkpoint.pth.tar'
+pretrained: '../logs/magicpoint_synth_akaze/checkpoints/superPointNet_100000_checkpoint.pth.tar'
 # pretrained: '/home/gennosuke/pytorch-superpoint-master/logs/magicpoint_synth/checkpoints/superPointNet_200000_checkpoint.pth.tar'
-pretrained: 'logs/magicpoint_ms_coco_akaze/checkpoints/superPointNet_50000_checkpoint.pth.tar'
+# pretrained: '../logs/magicpoint_ms_coco_akaze/checkpoints/superPointNet_50000_checkpoint.pth.tar'
