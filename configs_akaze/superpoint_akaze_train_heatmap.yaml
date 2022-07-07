@@ -2,7 +2,7 @@ data:
     # name: 'coco'
     dataset: 'Coco' # 'coco'
 
-    labels: datasets/magicpoint_synth20_homoAdapt100_coco_f1/predictions
+    labels: ../logs/magicpoint_akaze_coco/predictions
     root: # datasets/COCO
     root_split_txt: # /datasets/COCO
 
@@ -96,7 +96,7 @@ reset_iter: True # set true to set the iteration number to 0
 train_iter: 200000 # 170000
 validation_interval: 200 # 2000
 tensorboard_interval: 200 # 200
-save_interval: 200 # 2000
+save_interval: 2000 # 2000
 validation_size: 5
 
 pretrained: 

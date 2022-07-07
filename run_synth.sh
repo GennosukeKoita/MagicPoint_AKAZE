@@ -1,0 +1,6 @@
+python train4.py train_base configs_synth/magicpoint_original_synth_pair.yaml magicpoint_original_synth --eval
+PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:100 python export.py export_detector_homoAdapt configs_synth/magicpoint_original_synth_export_train.yaml magicpoint_original_synth
+PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:100 python export.py export_detector_homoAdapt configs_synth/magicpoint_original_synth_export_val.yaml magicpoint_original_synth
+# python search_nan_and_delete.py
+python train4.py train_joint configs_synth/superpoint_synth_train_heatmap.yaml superpoint_synth_coco --eval --debug
+python export.py export_descriptor  configs_synth/superpoint_synth_repeatability_heatmap.yaml superpoint_synth_hpatches_test
