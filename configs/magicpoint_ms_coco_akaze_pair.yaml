@@ -93,8 +93,8 @@ model:
             method: '2d'
     other_settings: 'train 2d, gauss 0.5'
 
-# retrain: True # set true for new model
-retrain: false
+retrain: True # set true for new model
+# retrain: True
 reset_iter: True
 
 train_iter: 200000 # 200000

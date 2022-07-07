@@ -1,7 +1,7 @@
 data:
     dataset: 'Coco'  # 'coco' 'hpatches'
-    # export_folder: 'train' # ms-cocoの出力
-    export_folder: 'val' # ms-cocoの出力
+    export_folder: 'train' # ms-cocoの出力
+    # export_folder: 'val' # ms-cocoの出力
     # export_folder: 'test' # Synthetic Shapesの出力
     preprocessing:
         resize: [240, 320] 
@@ -44,9 +44,9 @@ model:
     nms: 4
     top_k: 600
     subpixel:
-        # enable: true
-        enable: false
+        enable: true
+        # enable: false
 
-pretrained: '../logs/magicpoint_synth_akaze/checkpoints/superPointNet_100000_checkpoint.pth.tar'
+pretrained: '../logs/magicpoint_akaze_coco/checkpoints/superPointNet_200000_checkpoint.pth.tar'
 # pretrained: '/home/gennosuke/pytorch-superpoint-master/logs/magicpoint_synth/checkpoints/superPointNet_200000_checkpoint.pth.tar'
 # pretrained: '../logs/magicpoint_ms_coco_akaze/checkpoints/superPointNet_50000_checkpoint.pth.tar'

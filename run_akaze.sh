@@ -1,0 +1,6 @@
+python train4.py train_base configs/magicpoint_ms_coco_akaze_pair.yaml magicpoint_akaze_coco --eval
+PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:100 python export.py export_detector_homoAdapt configs/magicpoint_coco_export_train.yaml magicpoint_akaze_coco
+PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:100 python export.py export_detector_homoAdapt configs/magicpoint_coco_export_val.yaml magicpoint_akaze_coco
+python search_nan_and_delete.py
+python train4.py train_joint configs/superpoint_akaze_coco_train_heatmap.yaml superpoint_akaze_coco --eval --debug
+python export.py export_descriptor  configs/magicpoint_akaze_repeatability_heatmap.yaml superpoint_akaze_hpatches_test
