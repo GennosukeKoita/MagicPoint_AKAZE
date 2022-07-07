@@ -1,6 +1,7 @@
 data:
     name: 'patches_dataset'
     dataset: 'hpatches'  # 'coco' 'hpatches'
+    # dataset: 'Coco'
     alteration: 'all'  # 'all' 'i' 'v'
     preprocessing:
         resize: [240, 320]  # [240, 320] for HPatches and False for coco
@@ -35,7 +36,7 @@ model:
         sigma: 0.2
     # pretrained: 'logs/superpoint_kitti_heat2_0/checkpoints/superPointNet_50000_checkpoint.pth.tar'
     # pretrained: 'logs/superpoint_spollo_v0/checkpoints/superPointNet_40000_checkpoint.pth.tar'
-    pretrained: 'logs/superpoint_coco/checkpoints/superPointNet_200000_checkpoint.pth.tar'
+    pretrained: '../logs/superpoint_akaze_coco/checkpoints/superPointNet_200000_checkpoint.pth.tar'
     # pretrained: 'logs/superpoint_coco_heat2_0/checkpoints/superPointNet_170000_checkpoint.pth.tar'
 
 

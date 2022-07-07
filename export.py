@@ -244,7 +244,6 @@ def export_detector_homoAdapt_gpu(config, output_dir, args):
         print("==> Successfully loaded pre-trained network.")
 
         fe.net_parallel()
-        print(path)
         # save to files
         save_file = save_output / "export.txt"
         with open(save_file, "a") as myfile:
@@ -261,7 +260,7 @@ def export_detector_homoAdapt_gpu(config, output_dir, args):
 
     ## loop through all images
     for i, sample in tqdm(enumerate(test_loader)):
-        if i == 100: exit()
+        # if i == 100: exit()
         img, mask_2D = sample["image"], sample["valid_mask"]
         img = img.transpose(0, 1)
         img_2D = sample["image_2D"].numpy().squeeze()
