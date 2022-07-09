@@ -2,8 +2,8 @@ import numpy as np
 from glob import glob
 
 train_val_npy_path = [
-    '/home/gennosuke/logs/magicpoint_ms_coco_akaze/predictions/train/*',
-    '/home/gennosuke/logs/magicpoint_ms_coco_akaze/predictions/val/*'
+    '/home/gennosuke/logs/magicpoint_akaze_coco/predictions/train/*',
+    '/home/gennosuke/logs/magicpoint_akaze_coco/predictions/val/*'
 ]
 error_npz_path = []
 
