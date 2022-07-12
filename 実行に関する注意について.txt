@@ -1,0 +1,28 @@
+実行環境
+OS:Fedora 34 (Workstation Edition)
+CPU:AMD® Ryzen 7 3700x 8-core processor × 16 
+GPU:NVIDIA Corporation GA104 [GeForce RTX 3060 Ti Lite Hash Rate]
+python==3.9.12
+CUDA Version:11.5
+Pytorch Version:1.11.0
+
+
+2. Exporting detections on MS-COCO / kitti
+    This is the step of homography adaptation(HA) to export pseudo ground truth for joint training.
+
+実行しない例：python export.py export_detector_homoAdapt configs/magicpoint_coco_export.yaml magicpoint_synth_homoAdapt_coco
+修正：PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:100 python export.py export_detector_homoAdapt configs/magicpoint_coco_export.yaml magicpoint_synth_homoAdapt_coco
+（バッチサイズを100にしている。バッチサイズは100であったが、エラーを出すため、実行時につけた。）
+参考URL:http://fruitsoflife.sblo.jp/article/189004809.html
+なお、末尾に--outputImgをつけると画像が出力される。画像を出力する際は、
+./logs/magicpoint_synth_homoAdapt_coco/predict/train/内のnpzファイルを削除すること。
+
+3. Training Superpoint on MS-COCO/ KITTI
+    You need pseudo ground truth labels to traing detectors.
+    Labels can be exported from step 2) or downloaded from link.
+    Then, as usual, you need to set config file before training.
+
+2で出力されたnpzファイルが必要になる。これがないと、データセットが無いとみなされ、正常に実行されない。
+cocoデータセットから出力されたnpzファイルの全ファイルサイズは200MBもない(はず)。
+/share/home/gennosuke/pytorch-superpoint-master/configs/superpoint_coco_train_heatmap.yamlのLabelsにてパスの変更可能。
+変更したパスのディレクトリにnpzファイルを入れてほしい。
