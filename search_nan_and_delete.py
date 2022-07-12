@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from glob import glob
 
@@ -5,11 +6,13 @@ train_val_npy_path = [
     '/home/gennosuke/logs/magicpoint_akaze_coco/predictions/train/*',
     '/home/gennosuke/logs/magicpoint_akaze_coco/predictions/val/*'
 ]
+
 error_npz_path = []
 
 for npz_path in train_val_npy_path:
     path_list = glob(npz_path)
-    for path in path_list[:]:
+    for path in path_list:
+        if os.path.basename(path) == 'export.txt': continue
         labels = np.zeros((240, 320))
         npy = np.load(path)
         pnts = npy['pts']

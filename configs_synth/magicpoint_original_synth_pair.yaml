@@ -1,10 +1,12 @@
 data:
 #    name: 'synthetic_shapes'
     dataset: 'SyntheticDataset_gaussian'
-    primitives: 'all'
+    primitives: [
+        'draw_lines', 'draw_polygon', 'draw_multiple_polygons', 'draw_ellipses',
+        'draw_star', 'draw_checkerboard', 'draw_stripes', 'draw_cube', gaussian_noise]
     truncate: {draw_ellipses: 0.3, draw_stripes: 0.2, gaussian_noise: 0.1}
     cache_in_memory: true
-    suffix: 'v6'
+    suffix: 'synthetic_shapes_v6'
     add_augmentation_to_test_set: false  # set to true to evaluate with noise
     gaussian_label:
         enable: false
@@ -104,5 +106,5 @@ validation_size: 10
 train_show_interval: 1000 # one show of the current training from to Tensorboard every N training steps
 seed: 0
 
-# pretrained: 'logs/superpoint_syn_heat1_0/checkpoints/superPointNet_100000_checkpoint.pth.tar'
+pretrained: #'logs/superpoint_syn_heat1_0/checkpoints/superPointNet_100000_checkpoint.pth.tar'
 

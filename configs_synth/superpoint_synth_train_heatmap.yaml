@@ -2,7 +2,7 @@ data:
     # name: 'coco'
     dataset: 'Coco' # 'coco'
 
-    labels: ../logs/magicpoint_synth_coco/predictions
+    labels: ../logs/magicpoint_original_synth/predictions
     root: # datasets/COCO
     root_split_txt: # /datasets/COCO
 

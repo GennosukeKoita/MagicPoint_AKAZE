@@ -1,0 +1,51 @@
+Pythonの環境作成について、venvを使用した方法でやりたいと思う。
+Anacondaでやることもいいが、ライブラリがなかったり、入れられなかったりすることがあるため、あまりおすすめしない。
+もしやるなら、Google大先生に聞いてください。
+
+
+①新しい環境の作成。以下のコマンドをターミナルで実行。
+mkdir プロジェクト名 && cd プロジェクト名
+python -m venv 環境名
+プロジェクト名はなんでもいい。環境名もなんでもいいが、myenvが無難らしい。
+いくつも環境を作成するなら、これ以外の名前が無難。
+
+
+②環境のアクティベート。以下のコマンドをターミナルで実行。
+source 環境名/bin/activate
+これで、環境の作成は終わり。
+同じ環境を使用する場合は何度も上のコマンド実行する必要はない。
+別の環境にアクティベートする場合は上のコマンドを実行すればいい。
+
+
+②.5環境のデクティベート。
+deactivate
+以上。
+
+
+③pip環境のアップデート。
+これをすると、ライブラリのバージョンが指定できるようになる。
+以下のコマンドをターミナルで実行。
+pip install --upgrade pip
+エラーになる場合は、以下を実行。
+python -m pip install --upgrade pip
+
+
+④Pytorch,TensorFlowをインストールする場合。
+これらは、CUDAのバージョンによって入れられるPytorch,TensorFlowのバージョンが決まるため注意が必要。
+詳しくは、「pytroch cuda インストール linux」「tensorflow cuda インストール linux」と調べればある程度は対応可能。
+Pytorch公式サイト：https://pytorch.org/get-started/locally/
+
+例として、Pytorchのバージョン1.11.0のインストール方法を記載する。
+pip install torch torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu115
+
+
+⑤ライブラリのインストール。
+もし、github上からコードを持ってくる場合に、ライブラリのバージョン一覧にされたtxtファイルがあれば、以下を実行する。
+pip install -r テキストファイル名.txt
+テキストファイル名はrequirement.txtであることが多い。
+なければ、
+pip install ライブラリ名
+と一つ一つ入れていくしか無い。
+
+
+参考URL：https://qiita.com/fiftystorm36/items/b2fd47cf32c7694adc2e
