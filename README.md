@@ -73,3 +73,30 @@ python train4.py train_base configs_synth/magicpoint_original_synth_pair.yaml ma
 ```
 python train4.py train_base configs_akaze/magicpoint_akaze_coco_pair.yaml magicpoint_akaze_coco --eval
 ```
+
+## 参考文献
+Please cite the original paper.
+```
+@inproceedings{detone2018superpoint,
+  title={Superpoint: Self-supervised interest point detection and description},
+  author={DeTone, Daniel and Malisiewicz, Tomasz and Rabinovich, Andrew},
+  booktitle={Proceedings of the IEEE Conference on Computer Vision and Pattern Recognition Workshops},
+  pages={224--236},
+  year={2018}
+}
+```
+
+Please also cite our DeepFEPE paper.
+```
+@misc{2020_jau_zhu_deepFEPE,
+Author = {You-Yi Jau and Rui Zhu and Hao Su and Manmohan Chandraker},
+Title = {Deep Keypoint-Based Camera Pose Estimation with Geometric Constraints},
+Year = {2020},
+Eprint = {arXiv:2007.15122},
+}
+```
+
+# クレジット
+This implementation is developed by [You-Yi Jau](https://github.com/eric-yyjau) and [Rui Zhu](https://github.com/Jerrypiglet).
+Again the work is based on Tensorflow implementation by [Rémi Pautrat](https://github.com/rpautrat) and [Paul-Edouard Sarlin](https://github.com/Skydes) and official [SuperPointPretrainedNetwork](https://github.com/MagicLeapResearch/SuperPointPretrainedNetwork).
+Thanks to Daniel DeTone for help during the implementation.
