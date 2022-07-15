@@ -84,7 +84,7 @@ def evaluate(args, **options):
     rep_thd = 3
     save_file = path + "/result.txt"
     inliers_method = 'cv'
-    compute_map = True
+    compute_map = False
     verbose = True
     top_K = 1000
     print("top_K: ", top_K)
@@ -105,15 +105,13 @@ def evaluate(args, **options):
         path_rep = path + '/repeatibility' + str(rep_thd)
         os.makedirs(path_rep, exist_ok=True)
 
-    # for i in range(2):
-    #     f = files[i]
     print(f"file: {files[0]}")
     files.sort(key=lambda x: int(x[:-4]))
     from numpy.linalg import norm
     from utils.draw import draw_keypoints
     from utils.utils import saveImg
 
-    for f in tqdm(files):
+    for i, f in enumerate(tqdm(files)):
         f_num = f[:-4]
         data = np.load(path + '/' + f)
         print("load successfully. ", f)
@@ -256,8 +254,7 @@ def evaluate(args, **options):
                     from sklearn.metrics import average_precision_score
 
                     average_precision = average_precision_score(m_test, m_score)
-                    print('Average precision-recall score: {0:0.2f}'.format(
-                        average_precision))
+                    print('Average precision-recall score: {0:0.2f}'.format(average_precision))
                     return average_precision
 
                 def flipArr(arr):
@@ -298,8 +295,6 @@ def evaluate(args, **options):
             if args.outputImg:
                 # draw warping
                 output = result
-                # img1 = image/255
-                # img2 = warped_image/255
                 img1 = image
                 img2 = warped_image
 
@@ -330,7 +325,7 @@ def evaluate(args, **options):
                 result['image1'] = image
                 result['image2'] = warped_image
                 matches = np.array(result['cv2_matches'])
-                ratio = 0.2
+                ratio = 1.0
                 ran_idx = np.random.choice(matches.shape[0], int(matches.shape[0]*ratio))
 
                 img = draw_matches_cv(result, matches[ran_idx], plot_points=True)
@@ -346,7 +341,7 @@ def evaluate(args, **options):
             if matches.shape[0] > 0:
                 from utils.draw import draw_matches
                 filename = path_match + '/' + f_num + 'm.png'
-                ratio = 0.1
+                ratio = 1.0 # 出力するマッチング数を変更できる
                 inliers = result['inliers']
 
                 matches_in = matches[inliers == True]
@@ -375,10 +370,8 @@ def evaluate(args, **options):
     
     if args.homography:
         correctness_ave = np.array(correctness).mean(axis=0)
-        # est_H_mean_dist = np.array(est_H_mean_dist)
         print("homography estimation threshold", homography_thresh)
         print("correctness_ave", correctness_ave)
-        # print(f"mean est H dist: {est_H_mean_dist.mean()}")
         mscore_m = np.array(mscore).mean(axis=0)
         print("matching score", mscore_m)
         if compute_map:
@@ -399,9 +392,6 @@ def evaluate(args, **options):
             myfile.write("Homography estimation: " + '\n')
             myfile.write("Homography threshold: " + str(homography_thresh) + '\n')
             myfile.write("Average correctness: " + str(correctness_ave) + '\n')
-
-            # myfile.write("mean est H dist: " + str(est_H_mean_dist.mean()) + '\n')
-
             if compute_map:
                 myfile.write("nn mean AP: " + str(mAP_m) + '\n')
             myfile.write("matching score: " + str(mscore_m) + '\n')
@@ -411,7 +401,6 @@ def evaluate(args, **options):
         if verbose:
             myfile.write("====== details =====" + '\n')
             for i in range(len(files)):
-
                 myfile.write("file: " + files[i])
                 if args.repeatibility:
                     myfile.write("; rep: " + str(repeatability[i]))
@@ -436,10 +425,7 @@ def evaluate(args, **options):
 
     filename = f'{save_file[:-4]}.npz'
     logging.info(f"save file: {filename}")
-    np.savez(
-        filename,
-        **dict_of_lists,
-    )
+    np.savez(filename, **dict_of_lists)
 
 
 if __name__ == '__main__':

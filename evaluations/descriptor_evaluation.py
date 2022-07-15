@@ -61,27 +61,14 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
     """
     Compute the homography between 2 sets of detections and descriptors inside data.
     """
-    # shape = data['prob'].shape
     print("shape: ", shape)
     real_H = data['homography']
-
-    # Keeps only the points shared between the two views
-    # keypoints = keep_shared_points(data['prob'],
-    #                                real_H, keep_k_points)
-    # warped_keypoints = keep_shared_points(data['warped_prob'],
-    #                                       np.linalg.inv(real_H), keep_k_points)
-    # keypoints = data['prob'][:,:2]
     keypoints = data['prob'][:,[1, 0]]
-    # warped_keypoints = data['warped_prob'][:,:2]
     warped_keypoints = data['warped_prob'][:,[1, 0]]
-    # desc = data['desc'][keypoints[:, 0], keypoints[:, 1]]
-    # warped_desc = data['warped_desc'][warped_keypoints[:, 0],
-    #                                   warped_keypoints[:, 1]]
     desc = data['desc']
     warped_desc = data['warped_desc']
 
     # Match the keypoints with the warped_keypoints with nearest neighbor search
-    # def get_matches():
     if orb:
         desc = desc.astype(np.uint8)
         warped_desc = warped_desc.astype(np.uint8)
@@ -98,24 +85,13 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
     m_warped_keypoints = warped_keypoints[matches_idx, :]
     matches = np.hstack((m_keypoints[:, [1, 0]], m_warped_keypoints[:, [1, 0]]))
     print(f"matches: {matches.shape}")
-    # get_matches()
-    # from export_classical import get_sift_match
-    # data = get_sift_match(sift_kps_ii=keypoints, sift_des_ii=desc, 
-            # sift_kps_jj=warped_keypoints, sift_des_jj=warped_desc, if_BF_matcher=True) 
-    # matches_pts = data['match_quality_good']
-    # cv_matches = data['cv_matches']
-    # print(f"matches: {matches_pts.shape}")
     
 
     # Estimate the homography between the matches using RANSAC
     H, inliers = cv2.findHomography(m_keypoints[:, [1, 0]],
                                     m_warped_keypoints[:, [1, 0]],
                                     cv2.RANSAC)
-
-    # H, inliers = cv2.findHomography(matches_pts[:, [1, 0]],
-    #                                 matches_pts[:, [3, 2]],
-    #                                 cv2.RANSAC)
-                                    
+    
     inliers = inliers.flatten()
     # print(f"cv_matches: {np.array(cv_matches).shape}, inliers: {inliers.shape}")
 
@@ -130,10 +106,6 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
                             [shape[1] - 1, 0, 1],
                             [shape[1] - 1, shape[0] - 1, 1]])
         print("corner: ", corners)
-        # corners = np.array([[0, 0, 1],
-        #             [0, shape[1] - 1, 1],
-        #             [shape[0] - 1, 0, 1],
-        #             [shape[0] - 1, shape[1] - 1, 1]])
         real_warped_corners = np.dot(corners, np.transpose(real_H))
         real_warped_corners = real_warped_corners[:, :2] / real_warped_corners[:, 2:]
         print("real_warped_corners: ", real_warped_corners)
