@@ -4,7 +4,7 @@ data:
     primitives: ['ms-coco']
     truncate: {draw_ellipses: 0.3, draw_stripes: 0.2}
     cache_in_memory: true
-    suffix: 'ms-coco_akaze'
+    suffix: 'akaze_coco'
     add_augmentation_to_test_set: false  # set to true to evaluate with noise
     gaussian_label:
         enable: false
@@ -105,5 +105,5 @@ validation_size: 10
 train_show_interval: 1000 # one show of the current training from to Tensorboard every N training steps
 seed: 0
 
-pretrained: '/home/gennosuke/magicpoint_akaze/logs/magicpoint_ms_coco_akaze/checkpoints/superPointNet_142000_checkpoint.pth.tar'
+pretrained: # '/home/gennosuke/magicpoint_akaze/logs/magicpoint_ms_coco_akaze/checkpoints/superPointNet_142000_checkpoint.pth.tar'
 
