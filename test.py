@@ -50,8 +50,10 @@ configs = {
     }
 }
 
+
 def load_as_float(path):
     return imread(path).astype(np.float32) / 255
+
 
 def imgPhotometric(img, config):
     """
@@ -67,11 +69,20 @@ def imgPhotometric(img, config):
     img = cusAug(img, **config["augmentation"])
     return img
 
+
 train_paths = glob.glob(DATA_PATH + '/akaze_coco/ms-coco/images/training/*')
 val_paths = glob.glob(DATA_PATH + '/akaze_coco/ms-coco/images/validation/*')
-
-for i in tqdm(range(len(train_paths))):
-    img = load_as_float(train_paths[i])
-    img = imgPhotometric(img, configs)
+for paths in [train_paths, val_paths]:
+    for i in tqdm(range(len(paths))):
+        img = load_as_float(paths[i])
+        img = imgPhotometric(img, configs)
 
 print("Test OK!!")
+
+# npy_dir_path = f'{DATA_PATH}/akaze_coco/ms-coco/points/validation/*'
+# npy_paths = glob.glob(npy_dir_path)
+# print(len(npy_paths))
+# for path in npy_paths:
+#     npy = np.load(path)
+#     if len(npy) == 0:
+#         print("test")

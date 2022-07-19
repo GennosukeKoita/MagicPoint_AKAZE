@@ -81,6 +81,8 @@ def evaluate(args, **options):
     mscore = []
     mAP = []
     localization_err = []
+    n_matches = []
+    n_matches_in = []
     rep_thd = 3
     save_file = path + "/result.txt"
     inliers_method = 'cv'
@@ -190,6 +192,8 @@ def evaluate(args, **options):
             score = (result['inliers'].sum() * 2) / (keypoints.shape[0] + unwarped_pnts.shape[0])
             print("m. score: ", score)
             mscore.append(score)
+            n_matches.append(len(result["matches"]))
+            n_matches_in.append(len(result["matches"][result["inliers"] == True]))
             # compute map
             if compute_map:
                 def getMatches(data):
@@ -377,7 +381,7 @@ def evaluate(args, **options):
         if compute_map:
             mAP_m = np.array(mAP).mean()
             print("mean AP", mAP_m)
-
+        
         print("end")
 
     # save to files
@@ -420,6 +424,8 @@ def evaluate(args, **options):
         'homography_thresh': homography_thresh,
         'mscore': mscore,
         'mAP': np.array(mAP),
+        'n_matches': n_matches,
+        'n_matches_in': n_matches_in
         # 'est_H_mean_dist': est_H_mean_dist
     }
 
