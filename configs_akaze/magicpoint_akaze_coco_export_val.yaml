@@ -42,7 +42,7 @@ model:
     eval_batch_size: 1
     detection_threshold: 0.015 # 0.015
     nms: 4
-    top_k: 600
+    top_k: 150
     subpixel:
         enable: true
         # enable: false
