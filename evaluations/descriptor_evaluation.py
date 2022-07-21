@@ -86,11 +86,10 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
     matches = np.hstack((m_keypoints[:, [1, 0]], m_warped_keypoints[:, [1, 0]]))
     print(f"matches: {matches.shape}")
     
-
     # Estimate the homography between the matches using RANSAC
     H, inliers = cv2.findHomography(m_keypoints[:, [1, 0]],
-                                    m_warped_keypoints[:, [1, 0]],
-                                    cv2.RANSAC)
+                                        m_warped_keypoints[:, [1, 0]],
+                                        cv2.RANSAC)
     
     inliers = inliers.flatten()
     # print(f"cv_matches: {np.array(cv_matches).shape}, inliers: {inliers.shape}")
@@ -100,6 +99,7 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
         correctness = 0
         H = np.identity(3)
         print("no valid estimation")
+        return None
     else:
         corners = np.array([[0, 0, 1],
                             [0, shape[0] - 1, 1],

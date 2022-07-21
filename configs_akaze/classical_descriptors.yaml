@@ -9,9 +9,12 @@ data:
 #        resize: [480, 640]  # False for coco
 model:
     name: 'classical_detectors_descriptors'
-    method: 'sift'  # 'orb' 'sift'
+    method: 'akaze'  # 'orb' 'sift' 'akaze'
     batch_size: 1  # unused
     learning_rate: 0.001  # unused
+    # detection_threshold: 0.015 # 0.015
+    detection_threshold: 0.001
+    # detection_threshold: null
     nms: 4
     top_k: 1000
 eval_iter: 600

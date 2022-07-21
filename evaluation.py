@@ -5,6 +5,7 @@ Author: You-Yi Jau, Yiqian Wang
 Date: 2020/03/30
 """
 
+from glob import glob
 import matplotlib
 matplotlib.use('Agg') # solve error of tk
 
@@ -22,8 +23,8 @@ from utils.logging import *
 
 def draw_matches_cv(data, matches, plot_points=True):
     if plot_points:
-        keypoints1 = [cv2.KeyPoint(p[1], p[0], 1) for p in data['keypoints1']]
-        keypoints2 = [cv2.KeyPoint(p[1], p[0], 1) for p in data['keypoints2']]
+        keypoints1 = [cv2.KeyPoint(float(p[1]), float(p[0]), 1) for p in data['keypoints1']]
+        keypoints2 = [cv2.KeyPoint(float(p[1]), float(p[0]), 1) for p in data['keypoints2']]
     else:
         matches_pts = data['matches']
         keypoints1 = [cv2.KeyPoint(p[0], p[1], 1) for p in matches_pts]
@@ -31,7 +32,6 @@ def draw_matches_cv(data, matches, plot_points=True):
         print(f"matches_pts: {matches_pts}")
         # keypoints1, keypoints2 = [], []
 
-    inliers = data['inliers'].astype(bool)
     # matches = np.array(data['matches'])[inliers].tolist()
     # matches = matches[inliers].tolist()
     def to3dim(img):
@@ -106,6 +106,8 @@ def evaluate(args, **options):
         os.makedirs(path_match, exist_ok=True)
         path_rep = path + '/repeatibility' + str(rep_thd)
         os.makedirs(path_rep, exist_ok=True)
+        warp_img_dir_path = os.path.join(path_warp, '*')
+        warp_img_paths = [os.path.basename(g) for g in glob(warp_img_dir_path)]
 
     print(f"file: {files[0]}")
     files.sort(key=lambda x: int(x[:-4]))
@@ -114,6 +116,9 @@ def evaluate(args, **options):
     from utils.utils import saveImg
 
     for i, f in enumerate(tqdm(files)):
+        if f'{i}.png' in warp_img_paths:
+            print(f'{i}.npz pass!!')
+            continue
         f_num = f[:-4]
         data = np.load(path + '/' + f)
         print("load successfully. ", f)
@@ -131,6 +136,8 @@ def evaluate(args, **options):
         print("keypoints: ", keypoints[:3,:])
         warped_keypoints = data['warped_prob'][:, [1, 0]]
         print("warped_keypoints: ", warped_keypoints[:3,:])
+        if len(keypoints) < 4 or len(warped_keypoints) < 4:
+            continue
         # print("Unwrap successfully.")
 
         if args.repeatibility:
@@ -165,6 +172,8 @@ def evaluate(args, **options):
             homography_thresh = [1,3,5,10,20,50]
             #####
             result = compute_homography(data, correctness_thresh=homography_thresh)
+            if result == None:
+                continue
             correctness.append(result['correctness'])
             # est_H_mean_dist.append(result['mean_dist'])
             # compute matching score
@@ -264,7 +273,7 @@ def evaluate(args, **options):
                 def flipArr(arr):
                     return arr.max() - arr
                 
-                if args.sift:
+                if args.classic:
                     assert result is not None
                     matches, mscores = result['matches'], result['mscores']
                 else:
@@ -281,8 +290,8 @@ def evaluate(args, **options):
                     inliers = getInliers_cv(matches, real_H, epi=3, verbose=verbose)
                     
                 ## distance to confidence
-                if args.sift:
-                    m_flip = flipArr(mscores[:])  # for sift
+                if args.classic:
+                    m_flip = flipArr(mscores[:])  # for classic
                 else:
                     m_flip = flipArr(mscores[:,2])
         
@@ -411,7 +420,8 @@ def evaluate(args, **options):
                 if args.homography:
                     myfile.write("; correct: " + str(correctness[i]))
                     # matching
-                    myfile.write("; mscore: " + str(mscore[i]))
+                    myfile.write("; n_matches: " + str(n_matches[i]))
+                    myfile.write("; n_matches_in: " + str(n_matches_in[i]))
                     if compute_map:
                         myfile.write(":, mean AP: " + str(mAP[i]))
                 myfile.write('\n')
@@ -442,7 +452,7 @@ if __name__ == '__main__':
                         datefmt='%m/%d/%Y %H:%M:%S', level=logging.INFO)
     parser = argparse.ArgumentParser()
     parser.add_argument('path', type=str)
-    parser.add_argument('--sift', action='store_true', help='use sift matches')
+    parser.add_argument('--classic', action='store_true', help='use classical method matches')
     parser.add_argument('-o', '--outputImg', action='store_true')
     parser.add_argument('-r', '--repeatibility', action='store_true')
     parser.add_argument('-homo', '--homography', action='store_true')
