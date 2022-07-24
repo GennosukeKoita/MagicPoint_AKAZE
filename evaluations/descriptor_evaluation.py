@@ -61,7 +61,7 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
     """
     Compute the homography between 2 sets of detections and descriptors inside data.
     """
-    print("shape: ", shape)
+    # print("shape: ", shape)
     real_H = data['homography']
     keypoints = data['prob'][:,[1, 0]]
     warped_keypoints = data['warped_prob'][:,[1, 0]]
@@ -75,8 +75,8 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
         bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
     else:
         bf = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-    print("desc: ", desc.shape)
-    print("w desc: ", warped_desc.shape)
+    # print("desc: ", desc.shape)
+    # print("w desc: ", warped_desc.shape)
     cv2_matches = bf.match(desc, warped_desc)
     matches_idx = np.array([m.queryIdx for m in cv2_matches])
     m_keypoints = keypoints[matches_idx, :]
@@ -84,12 +84,15 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
     m_dist = np.array([m.distance for m in cv2_matches])
     m_warped_keypoints = warped_keypoints[matches_idx, :]
     matches = np.hstack((m_keypoints[:, [1, 0]], m_warped_keypoints[:, [1, 0]]))
-    print(f"matches: {matches.shape}")
+    # print(f"matches: {matches.shape}")
+
+    if len(m_keypoints[:, [1, 0]]) < 4 or len(m_warped_keypoints[:, [1, 0]]) < 4:
+        return None
     
     # Estimate the homography between the matches using RANSAC
     H, inliers = cv2.findHomography(m_keypoints[:, [1, 0]],
-                                        m_warped_keypoints[:, [1, 0]],
-                                        cv2.RANSAC)
+                                    m_warped_keypoints[:, [1, 0]],
+                                    cv2.RANSAC)
     
     inliers = inliers.flatten()
     # print(f"cv_matches: {np.array(cv_matches).shape}, inliers: {inliers.shape}")
@@ -98,21 +101,21 @@ def compute_homography(data, keep_k_points=1000, correctness_thresh=3, orb=False
     if H is None:
         correctness = 0
         H = np.identity(3)
-        print("no valid estimation")
+        # print("no valid estimation")
         return None
     else:
         corners = np.array([[0, 0, 1],
                             [0, shape[0] - 1, 1],
                             [shape[1] - 1, 0, 1],
                             [shape[1] - 1, shape[0] - 1, 1]])
-        print("corner: ", corners)
+        # print("corner: ", corners)
         real_warped_corners = np.dot(corners, np.transpose(real_H))
         real_warped_corners = real_warped_corners[:, :2] / real_warped_corners[:, 2:]
-        print("real_warped_corners: ", real_warped_corners)
+        # print("real_warped_corners: ", real_warped_corners)
         
         warped_corners = np.dot(corners, np.transpose(H))
         warped_corners = warped_corners[:, :2] / warped_corners[:, 2:]
-        print("warped_corners: ", warped_corners)
+        # print("warped_corners: ", warped_corners)
         
         mean_dist = np.mean(np.linalg.norm(real_warped_corners - warped_corners, axis=1))
         # correctness = float(mean_dist <= correctness_thresh)

@@ -29,7 +29,7 @@ def draw_matches_cv(data, matches, plot_points=True):
         matches_pts = data['matches']
         keypoints1 = [cv2.KeyPoint(p[0], p[1], 1) for p in matches_pts]
         keypoints2 = [cv2.KeyPoint(p[2], p[3], 1) for p in matches_pts]
-        print(f"matches_pts: {matches_pts}")
+        # print(f"matches_pts: {matches_pts}")
         # keypoints1, keypoints2 = [], []
 
     # matches = np.array(data['matches'])[inliers].tolist()
@@ -86,42 +86,43 @@ def evaluate(args, **options):
     rep_thd = 3
     save_file = path + "/result.txt"
     inliers_method = 'cv'
-    compute_map = False
+    compute_map = True
     verbose = True
+    random_plot = False
     top_K = 1000
-    print("top_K: ", top_K)
+    except_list = []
+    # print("top_K: ", top_K)
 
     reproduce = True
     if reproduce:
         logging.info("reproduce = True")
         np.random.seed(0)
-        print(f"test random # : np({np.random.rand(1)})")
+        # print(f"test random # : np({np.random.rand(1)})")
 
 
     # create output dir
+    path_warp = path+'/warping'
+    path_match = path + '/matching'
+    path_rep = path + '/repeatibility' + str(rep_thd)
+    warp_img_dir_path = os.path.join(path_warp, '*')
+    warp_img_paths = [os.path.basename(g) for g in glob(warp_img_dir_path)]
     if args.outputImg:
-        path_warp = path+'/warping'
         os.makedirs(path_warp, exist_ok=True)
-        path_match = path + '/matching'
         os.makedirs(path_match, exist_ok=True)
-        path_rep = path + '/repeatibility' + str(rep_thd)
         os.makedirs(path_rep, exist_ok=True)
-        warp_img_dir_path = os.path.join(path_warp, '*')
-        warp_img_paths = [os.path.basename(g) for g in glob(warp_img_dir_path)]
 
-    print(f"file: {files[0]}")
+    # print(f"file: {files[0]}")
     files.sort(key=lambda x: int(x[:-4]))
     from numpy.linalg import norm
     from utils.draw import draw_keypoints
     from utils.utils import saveImg
 
     for i, f in enumerate(tqdm(files)):
-        if f'{i}.png' in warp_img_paths:
-            print(f'{i}.npz pass!!')
-            continue
+        # if f'{i}.png' in warp_img_paths:
+            # print(f'{i}.npz pass!!')
         f_num = f[:-4]
         data = np.load(path + '/' + f)
-        print("load successfully. ", f)
+        # print("load successfully. ", f)
 
         # unwarp
         # prob = data['prob']
@@ -133,20 +134,17 @@ def evaluate(args, **options):
         image = data['image']
         warped_image = data['warped_image']
         keypoints = data['prob'][:, [1, 0]]
-        print("keypoints: ", keypoints[:3,:])
+        # print("keypoints: ", keypoints[:3,:])
         warped_keypoints = data['warped_prob'][:, [1, 0]]
-        print("warped_keypoints: ", warped_keypoints[:3,:])
-        if len(keypoints) < 4 or len(warped_keypoints) < 4:
-            continue
         # print("Unwrap successfully.")
 
         if args.repeatibility:
             rep, local_err = compute_repeatability(data, keep_k_points=top_K, distance_thresh=rep_thd, verbose=False)
             repeatability.append(rep)
-            print("repeatability: %.2f"%(rep))
+            # print("repeatability: %.2f"%(rep))
             if local_err > 0:
                 localization_err.append(local_err)
-                print('local_err: ', local_err)
+                # print('local_err: ', local_err)
             if args.outputImg:
                 # img = to3dim(image)
                 img = image
@@ -173,6 +171,7 @@ def evaluate(args, **options):
             #####
             result = compute_homography(data, correctness_thresh=homography_thresh)
             if result == None:
+                except_list.append(f'{i}.npz')
                 continue
             correctness.append(result['correctness'])
             # est_H_mean_dist.append(result['mean_dist'])
@@ -198,11 +197,11 @@ def evaluate(args, **options):
             from numpy.linalg import inv
             H, W = image.shape
             unwarped_pnts = warpLabels(warped_keypoints, inv(real_H), H, W)
-            score = (result['inliers'].sum() * 2) / (keypoints.shape[0] + unwarped_pnts.shape[0])
-            print("m. score: ", score)
+            score = (result['inliers'].sum()) / (len(result['matches']))
+            # print("m. score: ", score)
             mscore.append(score)
-            n_matches.append(len(result["matches"]))
-            n_matches_in.append(len(result["matches"][result["inliers"] == True]))
+            n_matches.append(len(result['matches']))
+            n_matches_in.append(result['inliers'].sum())
             # compute map
             if compute_map:
                 def getMatches(data):
@@ -212,7 +211,7 @@ def evaluate(args, **options):
                     warped_desc = data['warped_desc']
 
                     nn_thresh = 1.2
-                    print("nn threshold: ", nn_thresh)
+                    # print("nn threshold: ", nn_thresh)
                     tracker = PointTracker(max_length=2, nn_thresh=nn_thresh)
                     # matches = tracker.nn_match_two_way(desc, warped_desc, nn_)
                     tracker.update(keypoints.T, desc.T)
@@ -222,10 +221,10 @@ def evaluate(args, **options):
 
                     # mAP
                     # matches = data['matches']
-                    print("matches: ", matches.shape)
-                    print("mscores: ", mscores.shape)
-                    print("mscore max: ", mscores.max(axis=0))
-                    print("mscore min: ", mscores.min(axis=0))
+                    # print("matches: ", matches.shape)
+                    # print("mscores: ", mscores.shape)
+                    # print("mscore max: ", mscores.max(axis=0))
+                    # print("mscore min: ", mscores.min(axis=0))
 
                     return matches, mscores
 
@@ -243,9 +242,9 @@ def evaluate(args, **options):
                     norm = np.linalg.norm(warped_points - matches[:, 2:4],
                                             ord=None, axis=1)
                     inliers = norm < epi
-                    if verbose:
-                        print("Total matches: ", inliers.shape[0], ", inliers: ", inliers.sum(),
-                                          ", percentage: ", inliers.sum() / inliers.shape[0])
+                    # if verbose:
+                        # print("Total matches: ", inliers.shape[0], ", inliers: ", inliers.sum(),
+                                        #   ", percentage: ", inliers.sum() / inliers.shape[0])
 
                     return inliers
 
@@ -257,9 +256,9 @@ def evaluate(args, **options):
                                                     matches[:, [2, 3]],
                                                     cv2.RANSAC)
                     inliers = inliers.flatten()
-                    print("Total matches: ", inliers.shape[0], 
-                          ", inliers: ", inliers.sum(),
-                          ", percentage: ", inliers.sum() / inliers.shape[0])
+                    # print("Total matches: ", inliers.shape[0], 
+                        #   ", inliers: ", inliers.sum(),
+                        #   ", percentage: ", inliers.sum() / inliers.shape[0])
                     return inliers
             
             
@@ -267,7 +266,7 @@ def evaluate(args, **options):
                     from sklearn.metrics import average_precision_score
 
                     average_precision = average_precision_score(m_test, m_score)
-                    print('Average precision-recall score: {0:0.2f}'.format(average_precision))
+                    # print('Average precision-recall score: {0:0.2f}'.format(average_precision))
                     return average_precision
 
                 def flipArr(arr):
@@ -280,13 +279,16 @@ def evaluate(args, **options):
                     matches, mscores = getMatches(data)
                 
                 real_H = data['homography']
+                if len(matches[:, [0, 1]]) < 4 or len(matches[:, [2, 3]]) < 4:
+                    except_list.append(f'{i}.npz')
+                    continue
                 if inliers_method == 'gt':
                     # use ground truth homography
-                    print("use ground truth homography for inliers")
+                    # print("use ground truth homography for inliers")
                     inliers = getInliers(matches, real_H, epi=3, verbose=verbose)
                 else:
                     # use opencv estimation as inliers
-                    print("use opencv estimation for inliers")
+                    # print("use opencv estimation for inliers")
                     inliers = getInliers_cv(matches, real_H, epi=3, verbose=verbose)
                     
                 ## distance to confidence
@@ -295,7 +297,7 @@ def evaluate(args, **options):
                 else:
                     m_flip = flipArr(mscores[:,2])
         
-                if inliers.shape[0] > 0 and inliers.sum()>0:
+                if inliers.shape[0] > 0 and inliers.sum() > 0:
 #                     m_flip = flipArr(m_flip)
                     # compute ap
                     ap = computeAP(inliers, m_flip)
@@ -338,10 +340,12 @@ def evaluate(args, **options):
                 result['image1'] = image
                 result['image2'] = warped_image
                 matches = np.array(result['cv2_matches'])
-                ratio = 1.0
-                ran_idx = np.random.choice(matches.shape[0], int(matches.shape[0]*ratio))
-
-                img = draw_matches_cv(result, matches[ran_idx], plot_points=True)
+                if random_plot:
+                    ratio = 1.0
+                    ran_idx = np.random.choice(matches.shape[0], int(matches.shape[0]*ratio))
+                    img = draw_matches_cv(result, matches[ran_idx], plot_points=True)
+                else:
+                    img = draw_matches_cv(result, matches, plot_points=True)
                 # filename = "correspondence_visualization"
                 plot_imgs([img], titles=["Two images feature correspondences"], dpi=200)
                 plt.tight_layout()
@@ -359,39 +363,46 @@ def evaluate(args, **options):
 
                 matches_in = matches[inliers == True]
                 matches_out = matches[inliers == False]
-
                 def get_random_m(matches, ratio):
                     ran_idx = np.random.choice(matches.shape[0], int(matches.shape[0]*ratio))               
                     return matches[ran_idx], ran_idx
                 image = data['image']
                 warped_image = data['warped_image']
                 ## outliers
-                matches_temp, _ = get_random_m(matches_out, ratio)
+                random_plot = False
+                if random_plot:
+                    matches_temp, _ = get_random_m(matches_out, ratio)
+                else:
+                    matches_temp = matches_out
                 # print(f"matches_in: {matches_in.shape}, matches_temp: {matches_temp.shape}")
                 draw_matches(image, warped_image, matches_temp, lw=0.5, color='r',
                             filename=None, show=False, if_fig=True)
                 ## inliers
-                matches_temp, _ = get_random_m(matches_in, ratio)
+                if random_plot:
+                    matches_temp, _ = get_random_m(matches_in, ratio)
+                else:
+                    matches_temp = matches_in
                 draw_matches(image, warped_image, matches_temp, lw=1.0, 
                         filename=filename, show=False, if_fig=False)
 
     if args.repeatibility:
         repeatability_ave = np.array(repeatability).mean()
         localization_err_m = np.array(localization_err).mean()
-        print("repeatability: ", repeatability_ave)
-        print("localization error over ", len(localization_err), " images : ", localization_err_m)
+        # print("repeatability: ", repeatability_ave)
+        # print("localization error over ", len(localization_err), " images : ", localization_err_m)
     
     if args.homography:
         correctness_ave = np.array(correctness).mean(axis=0)
-        print("homography estimation threshold", homography_thresh)
-        print("correctness_ave", correctness_ave)
+        # print("homography estimation threshold", homography_thresh)
+        # print("correctness_ave", correctness_ave)
         mscore_m = np.array(mscore).mean(axis=0)
-        print("matching score", mscore_m)
+        # print("matching score", mscore_m)
         if compute_map:
             mAP_m = np.array(mAP).mean()
-            print("mean AP", mAP_m)
+            # print("mean AP", mAP_m)
         
-        print("end")
+        # print("end")
+    
 
     # save to files
     with open(save_file, "a") as myfile:
@@ -413,13 +424,15 @@ def evaluate(args, **options):
 
         if verbose:
             myfile.write("====== details =====" + '\n')
-            for i in range(len(files)):
-                myfile.write("file: " + files[i])
+            files = [i for i in files if i not in except_list]
+            for i, file in enumerate(files):
+                myfile.write("file: " + file)
                 if args.repeatibility:
                     myfile.write("; rep: " + str(repeatability[i]))
                 if args.homography:
                     myfile.write("; correct: " + str(correctness[i]))
                     # matching
+                    myfile.write("; mscore: " + str(mscore[i]))
                     myfile.write("; n_matches: " + str(n_matches[i]))
                     myfile.write("; n_matches_in: " + str(n_matches_in[i]))
                     if compute_map:

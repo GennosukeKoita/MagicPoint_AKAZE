@@ -224,7 +224,7 @@ def get_match_idx_pair(matcher, des1, des2):
     quality_all = []
     for m, n in matches:
         all_m.append(m)
-        if m.distance < 0.8 * n.distance:
+        if m.distance < 1.0 * n.distance:
             good.append(m)
             quality_good.append([m.distance, m.distance / n.distance])
         quality_all.append([m.distance, m.distance / n.distance])

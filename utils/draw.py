@@ -119,7 +119,7 @@ def draw_matches(rgb1, rgb2, match_pairs, lw = 0.5, color='g', if_fig=True,
     plt.tight_layout()
     if filename is not None:
         plt.savefig(filename, dpi=300, bbox_inches='tight')
-    print('#Matches = {}'.format(len(match_pairs)))
+    # print('#Matches = {}'.format(len(match_pairs)))
     if show:
         plt.show()
 

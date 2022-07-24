@@ -237,9 +237,9 @@ def compute_repeatability(data, keep_k_points=300,
 
     # Compute the repeatability
     N1 = true_warped_keypoints.shape[0]
-    print('true_warped_keypoints: ', true_warped_keypoints[:2,:])
+    # print('true_warped_keypoints: ', true_warped_keypoints[:2,:])
     N2 = warped_keypoints.shape[0]
-    print('warped_keypoints: ', warped_keypoints[:2,:])
+    # print('warped_keypoints: ', warped_keypoints[:2,:])
     N1s.append(N1)
     N2s.append(N2)
     true_warped_keypoints = np.expand_dims(true_warped_keypoints, 1)
