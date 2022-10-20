@@ -11,6 +11,7 @@ import glob
 import natsort
 import matplotlib.pyplot as plt
 import platform
+from tqdm import tqdm
 
 pf = platform.system()
 if pf == 'Darwin': # Mac
@@ -21,7 +22,7 @@ elif pf == 'Linux': # Linux
     LOG_PATH = '/home/gennosuke/logs'
 
 def detect_feature_points_with_resize(img, topk):
-    img = cv.resize(img, (640, 480))
+    img = cv.resize(img, (480, 640)) # Hは480、Wは640にしろ！
     # AKAZE検出器を読み込む
     akaze = cv.AKAZE_create()
     # 特徴点の検出
@@ -31,11 +32,10 @@ def detect_feature_points_with_resize(img, topk):
         for k in kp:
             kp_list.append([k.pt[1], k.pt[0], k.response]) # [y,x,response]responseは特徴点の強度
         kp_list = np.array(kp_list)
-        if topk > 0:
+        if 0 < topk < len(kp):
             kp_list = kp_list[np.argsort(kp_list[:,2])][:topk] # 昇順にして上位topk個取り出す
-        kp_list[:,0] = kp_list[:,0] / 2 # 640 / 2 = 320pixelに変更
-        kp_list[:,1] = kp_list[:,1] / 2 # 480 / 2 = 240pixelに変更
-        kp_list = np.round(kp_list, decimals=3)
+        kp_list[:,0] = kp_list[:,0] / 2 # 480 / 2 = 320pixelに変更
+        kp_list[:,1] = kp_list[:,1] / 2 # 640 / 2 = 240pixelに変更
         return True, kp_list
     else:
         return False, None
@@ -45,17 +45,19 @@ def detect_feature_points_with_resize(img, topk):
 tasks = ['train', 'val']
 dataset_path = f'{LOG_PATH}/akaze_coco_dataset'
 os.makedirs(dataset_path, exist_ok=True)
-prediction_path = join(dataset_path, 'predictions')
-os.makedirs(prediction_path, exist_ok=True)
+top_k = [0, 150, 200, 600]
+for top in top_k:
+    prediction_path = join(dataset_path, f'{top}_predictions')
+    os.makedirs(prediction_path, exist_ok=True)
 
-for key in tasks:
-    key_path = join(prediction_path, key)
-    os.makedirs(key_path, exist_ok=True)
-    coco_path = f'{DATA_PATH}/COCO/{key}2014/*'
-    coco_img_paths = natsort.natsorted(glob.glob(coco_path))
-    for path in coco_img_paths:
-        basename_without_ext = splitext(basename(path))[0]
-        img = cv.imread(path, cv.IMREAD_GRAYSCALE)
-        judge, kp_list = detect_feature_points_with_resize(img, 150)
-        if judge:
-            np.savez(f'{prediction_path}/{key}/{basename_without_ext}.npz', pts=kp_list)
+    for key in tasks:
+        key_path = join(prediction_path, key)
+        os.makedirs(key_path, exist_ok=True)
+        coco_path = f'{DATA_PATH}/COCO/{key}2014/*'
+        coco_img_paths = natsort.natsorted(glob.glob(coco_path))
+        for path in tqdm(coco_img_paths):
+            basename_without_ext = splitext(basename(path))[0]
+            img = cv.imread(path, cv.IMREAD_GRAYSCALE)
+            judge, kp_list = detect_feature_points_with_resize(img, top)
+            if judge:
+                np.savez(f'{prediction_path}/{key}/{basename_without_ext}.npz', pts=kp_list)
