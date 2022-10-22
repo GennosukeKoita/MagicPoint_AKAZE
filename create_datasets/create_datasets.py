@@ -155,7 +155,6 @@ def ex2():
         else:
             return False, None
 
-
     tasks = ['train', 'val']
     dataset_path = join(LOG_PATH, 'akaze_coco_dataset')
     makedirs(dataset_path, exist_ok=True)
@@ -166,7 +165,6 @@ def ex2():
         for key in tasks:
             key_path = join(prediction_path, key)
             makedirs(key_path, exist_ok=True)
-
 
     for key in tasks:
         coco_path = join(DATA_PATH, 'COCO', f'{key}2014', '*')
@@ -188,14 +186,15 @@ def ex2():
 def ex1():
     def detect_feature_points_with_resize(img, a):
         height, width, _ = img.shape
-        img = cv2.resize(img, (width*a, height*a))
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        img = cv2.cvtColor(cv2.resize(
+            img, (width*a, height*a)), cv2.COLOR_BGR2GRAY)
         akaze = cv2.AKAZE_create()
         kp = akaze.detect(img)
         if len(kp) > 0:
             kp_list = []
             for k in kp:
-                kp_list.append([k.pt[1], k.pt[0], k.response]) # [y,x,response]responseは特徴点の強度
+                # [y,x,response]responseは特徴点の強度
+                kp_list.append([k.pt[1], k.pt[0], k.response])
             kp_list = np.array(kp_list)
             # height*aサイズの位置座標 / (height*a) * 120 = 120pixelに変更
             kp_list[:, 0] = kp_list[:, 0] * 120 / (height*a)
@@ -203,7 +202,7 @@ def ex1():
             kp_list[:, 1] = kp_list[:, 1] * 160 / (width*a)
             kp_list = np.round(kp_list, decimals=3)
             resize_img = cv2.resize(img, (160, 120))
-            return True, resize_img, kp_list[:,:2]
+            return True, resize_img, kp_list[:, :2]
         else:
             return False, None, None
 
@@ -220,7 +219,7 @@ def ex1():
             makedirs(data_path, exist_ok=True)
 
     # データセットの作成と保存
-    tasks = {'training':"train2014", 'validation':"val2014"}
+    tasks = {'training': "train2014", 'validation': "val2014"}
     for key, value in tasks.items():
         coco_path = join(DATA_PATH, 'COCO', value, '*')
         save_img_path = join(base_path, 'images', key)
@@ -229,9 +228,11 @@ def ex1():
         for path in tqdm(coco_img_paths):
             basename_without_ext = splitext(basename(path))[0]
             img = cv2.imread(path)
-            judge, resize_img, kp_list = detect_feature_points_with_resize(img, 2) # [y,x,stregth]
+            judge, resize_img, kp_list = detect_feature_points_with_resize(
+                img, 2)  # [y,x,stregth]
             if judge:
-                cv2.imwrite(f'{save_img_path}/{basename_without_ext}.png', resize_img)
+                cv2.imwrite(
+                    f'{save_img_path}/{basename_without_ext}.png', resize_img)
                 np.save(f'{save_pnt_path}/{basename_without_ext}.npy', kp_list)
 
 
