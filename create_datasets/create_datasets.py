@@ -27,6 +27,7 @@ from os.path import join, basename, splitext
 from glob import glob
 import sys
 import natsort
+import pprint
 
 # OSの選択
 pf = platform.system()
@@ -37,8 +38,7 @@ elif pf == "Linux":  # Linux
     DATA_PATH = '/home/gennosuke/datasets'  # 環境に合わせて変える
     LOG_PATH = '/home/gennosuke/logs'
 
-
-def ex3_export_unet_dataset():
+def ex3_beta():
     def img_rotate(img):  # 画像の回転
         height = img.shape[0]
         width = img.shape[1]
@@ -48,22 +48,44 @@ def ex3_export_unet_dataset():
         image = cv2.warpAffine(img, trans, (width, height))
         return image
 
-    # ディレクトリの作成
-    dataset_path = join(DATA_PATH, "unet_dataset")
-    makedirs(dataset_path, exist_ok=True)
-    dirs = []
-    for im in ["imgs", "masks"]:
-        dirs.append(join(dataset_path, im))
-        makedirs(join(dataset_path, im), exist_ok=True)
+    tasks = {'train': 'training', 'val': 'validation'}
 
-    tasks = ['train']
+    print("ディレクトリの構成中")
+    
+    # magicpoint:ディレクトリの構築
+    mp_dataset_path = join(DATA_PATH, "ex3_magicpoint_dataset")  # magicpoint用のデータセット
+    makedirs(mp_dataset_path, exist_ok=True)
+    mp_second_dataset_path = join(mp_dataset_path, "city_scapes")
+    makedirs(mp_second_dataset_path, exist_ok=True)
+    mp_dirs = []
+    for ip in ["images", "points"]:
+        mp_dirs.append(join(mp_second_dataset_path, ip))
+        makedirs(join(mp_second_dataset_path, ip), exist_ok=True)
+    
+    # COCO(Superpoint):ディレクトリの構築
+    coco_dataset_path = join(DATA_PATH, "ex3_unet_coco")
+    makedirs(coco_dataset_path, exist_ok=True)
 
-    for task in tasks:
-        cs_path = join(DATA_PATH, "CityScapes", task, "*", "*")
-        paths = glob(cs_path)
-        for path in tqdm(paths):
+    for key, value in tasks.items():
+        # magicpoint:ディレクトリの構築
+        mp_key_path = join(mp_dirs[0], value)
+        makedirs(mp_key_path, exist_ok=True)
+        mp_value_path = join(mp_dirs[1], value)
+        makedirs(mp_value_path, exist_ok=True)
+
+        # COCO(Superpoint):ディレクトリの構築
+        coco_key_path = join(coco_dataset_path, f'{key}2014')
+        makedirs(coco_key_path, exist_ok=True)
+        print(f'{key}:ディレクトリの構成完了')
+
+        img_paths = glob(join(DATA_PATH, 'CityScapes', key, '*', '*'))
+        print(f'{key}:magicpoint, superpoint用の画像、マスク画像の保存中')
+        for path in tqdm(img_paths):
             # 画像の読み込み
-            img1 = cv2.resize(cv2.imread(path), (512, 256))
+            original_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+            mp_img = cv2.resize(original_img, (160, 120)) # magicpoint:画像の読み込みとリサイズ
+            sp_img = original_img # superpoint:画像の読み込み
+            img1 = cv2.resize(original_img, (1048, 512))
             width, height = img1.shape[1], img1.shape[0]
             img2 = img_rotate(img1)
 
@@ -71,6 +93,89 @@ def ex3_export_unet_dataset():
             akaze = cv2.AKAZE_create()
             kp1, des1 = akaze.detectAndCompute(img1, None)
             kp2, des2 = akaze.detectAndCompute(img2, None)
+            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+            matches = bf.match(des1, des2)
+            matches = sorted(matches, key=lambda x: x.distance)
+
+            kp_list = []
+            for match in matches:
+                x = kp1[match.queryIdx].pt[0] * 160 / width
+                y = kp1[match.queryIdx].pt[1] * 120 / height
+                kp_list.append([x, y])
+            kp_list = np.round(np.array(kp_list), decimals=3)
+
+            filename = basename(path)
+            # magicpoint:リサイズした元画像の保存と選択特徴点の位置座標の保存
+            cv2.imwrite(join(mp_key_path, filename), mp_img)
+            np.save(join(mp_value_path, splitext(filename)[0]+'.npy'), kp_list)
+
+            # COCO(Superpoint):元画像の保存
+            cv2.imwrite(join(coco_key_path, filename), sp_img)
+        print(f'{key}:magicpoint, superpoint用の画像、マスク画像の保存完了')
+
+def ex3():
+    def img_rotate(img):  # 画像の回転
+        height = img.shape[0]
+        width = img.shape[1]
+        angle = 30  # 画像の回転する角度
+        center = (int(width/2), int(height/2))
+        trans = cv2.getRotationMatrix2D(center, angle, scale=1)
+        image = cv2.warpAffine(img, trans, (width, height))
+        return image
+
+    tasks = {'train': 'training', 'val': 'validation'}
+
+    print("ディレクトリの構成中")
+
+    # unet:ディレクトリの構築
+    dataset_path = join(DATA_PATH, "unet_dataset")
+    makedirs(dataset_path, exist_ok=True)
+    im_dirs = []
+    for im in ["imgs", "masks"]:
+        im_dirs.append(join(dataset_path, im))
+        makedirs(join(dataset_path, im), exist_ok=True)
+    
+    # magicpoint:ディレクトリの構築
+    mp_dataset_path = join(DATA_PATH, "ex3_magicpoint_dataset")  # magicpoint用のデータセット
+    makedirs(mp_dataset_path, exist_ok=True)
+    mp_second_dataset_path = join(mp_dataset_path, "city_scapes")
+    makedirs(mp_second_dataset_path, exist_ok=True)
+    mp_dirs = []
+    for ip in ["images", "points"]:
+        mp_dirs.append(join(mp_second_dataset_path, ip))
+        makedirs(join(mp_second_dataset_path, ip), exist_ok=True)
+    
+    # COCO(Superpoint):ディレクトリの構築
+    coco_dataset_path = join(DATA_PATH, "ex3_unet_coco")
+    makedirs(coco_dataset_path, exist_ok=True)
+
+    for key, value in tasks.items():
+        # magicpoint:ディレクトリの構築
+        mp_key_path = join(mp_dirs[0], value)
+        makedirs(mp_key_path, exist_ok=True)
+        mp_value_path = join(mp_dirs[1], value)
+        makedirs(mp_value_path, exist_ok=True)
+
+        # COCO(Superpoint):ディレクトリの構築
+        coco_key_path = join(coco_dataset_path, f'{key}2014')
+        makedirs(coco_key_path, exist_ok=True)
+        print(f'{key}:ディレクトリの構成完了')
+
+        img_paths = glob(join(DATA_PATH, 'CityScapes', key, '*', '*'))
+        print(f'{key}:magicpoint, superpoint用の画像、マスク画像の保存中')
+        for path in tqdm(img_paths):
+            # 画像の読み込み
+            original_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+            mp_img = cv2.resize(original_img, (160, 120)) # magicpoint:画像の読み込みとリサイズ
+            sp_img = original_img # superpoint:画像の読み込み
+            unet_img1 = cv2.resize(original_img, (512, 256)) # unet:画像の読み込みとリサイズ
+            width, height = unet_img1.shape[1], unet_img1.shape[0]
+            unet_img2 = img_rotate(unet_img1)
+
+            # akazeの実行
+            akaze = cv2.AKAZE_create()
+            kp1, des1 = akaze.detectAndCompute(unet_img1, None)
+            kp2, des2 = akaze.detectAndCompute(unet_img2, None)
             bf = cv2.BFMatcher()
             matches = bf.match(des1, des2)
             matches = sorted(matches, key=lambda x: x.distance)
@@ -79,8 +184,8 @@ def ex3_export_unet_dataset():
             mask_size = (height, width)
             mask_img = np.zeros(mask_size, dtype=np.uint8)
             for match in matches:
-                x, y = int(kp1[match.queryIdx].pt[0]), int(
-                    kp1[match.queryIdx].pt[1])
+
+                x, y = int(kp1[match.queryIdx].pt[0]), int(kp1[match.queryIdx].pt[1])
                 cv2.rectangle(
                     mask_img,
                     (x-3, y-3),
@@ -90,49 +195,17 @@ def ex3_export_unet_dataset():
                 )
 
             filename = basename(path)
-            cv2.imwrite(join(dirs[0], filename), img1)  # 元画像の保存
-            cv2.imwrite(join(dirs[1], filename), mask_img)  # マスク画像の保存
-
-
-def ex3_convert_superpoint_dataset():  # 途中
-    # magicpoint:ディレクトリの作成
-    tasks = {'train': 'training', 'val': 'validation'}
-    mp_dataset_path = join(DATA_PATH, "akaze_with_unet")  # magicpoint用のデータセット
-    makedirs(mp_dataset_path, exist_ok=True)
-    mp_second_dataset_path = join(mp_dataset_path, "city_scapes")
-    makedirs(mp_second_dataset_path, exist_ok=True)
-    mp_dirs = []
-    for ip in ["images", "points"]:
-        mp_dirs.append(join(mp_second_dataset_path, ip))
-        makedirs(join(mp_second_dataset_path, ip), exist_ok=True)
-
-    # COCO(Superpoint):ディレクトリの作成
-    coco_dataset_path = join(DATA_PATH, "unet_coco")
-    makedirs(coco_dataset_path, exist_ok=True)
-
-    for key, value in tasks.items():
-        # magicpoint:ディレクトリの作成
-        mp_key_path = join(mp_dirs[0], value)
-        makedirs(mp_key_path, exist_ok=True)
-
-        # COCO(Superpoint):ディレクトリの作成
-        coco_key_path = join(coco_dataset_path, f'{key}2014')
-        makedirs(coco_key_path, exist_ok=True)
-
-        # 画像の読み込み、保存とunet出力から特徴点の位置座標の特定
-        cs_path = join(DATA_PATH, "CityScapes", key, "*", "*")
-        paths = glob(cs_path)
-        for path in tqdm(paths):
-            filename = basename(path)
-            original_img = cv2.imread(path)
-            # magicpoint:リサイズした元画像の保存
-            cv2.imwrite(
-                join(mp_key_path, filename),
-                cv2.resize(original_img, (160, 120))
-            )
+            # magicpoint:リサイズした元画像の保存と選択特徴点の位置座標の保存
+            cv2.imwrite(join(mp_key_path, filename), mp_img)
 
             # COCO(Superpoint):元画像の保存
-            cv2.imwrite(join(coco_key_path, filename), original_img)
+            cv2.imwrite(join(coco_key_path, filename), sp_img)
+            
+            # 元画像の保存
+            cv2.imwrite(join(im_dirs[0], filename), unet_img1)
+            # マスク画像の保存
+            cv2.imwrite(join(im_dirs[1], filename), mask_img)
+        print(f'{key}:unet, magicpoint, superpoint用の画像、マスク画像の保存完了')
 
 
 def ex2():
@@ -149,8 +222,8 @@ def ex2():
                 kp_list.append([k.pt[1], k.pt[0], k.response])
             kp_list = np.array(kp_list)
             kp_list = kp_list[np.argsort(kp_list[:, 2])[::-1]]  # 降順にする
-            kp_list[:, 0] = kp_list[:, 0] / 2  # 480 / 2 = 320pixelに変更
-            kp_list[:, 1] = kp_list[:, 1] / 2  # 640 / 2 = 240pixelに変更
+            kp_list[:, 0] = kp_list[:, 0] / 2  # 480 / 2 = 240pixelに変更
+            kp_list[:, 1] = kp_list[:, 1] / 2  # 640 / 2 = 320pixelに変更
             return True, kp_list
         else:
             return False, None
@@ -168,7 +241,7 @@ def ex2():
 
     for key in tasks:
         coco_path = join(DATA_PATH, 'COCO', f'{key}2014', '*')
-        coco_img_paths = natsort.natsorted(glob.glob(coco_path))
+        coco_img_paths = natsort.natsorted(glob(coco_path))
         for path in tqdm(coco_img_paths):
             basename_without_ext = splitext(basename(path))[0]
             img = cv2.imread(path, cv2.IMREAD_GRAYSCALE)
@@ -238,14 +311,14 @@ def ex1():
 
 def main():
     args = sys.argv
-    if args[1] == "unet":
-        ex3_export_unet_dataset()
-    elif args[1] == "super":
-        ex3_convert_superpoint_dataset()
+    if args[1] == "ex3":
+        ex3()
     elif args[1] == "ex2":
         ex2()
     elif args[1] == "ex1":
         ex1()
+    elif args[1] == "ex3_b":
+        ex3_beta()
 
 
 main()
