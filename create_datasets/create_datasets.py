@@ -28,15 +28,140 @@ from glob import glob
 import sys
 import natsort
 import pprint
+import matplotlib.pyplot as plt
 
 # OSの選択
 pf = platform.system()
 if pf == "Darwin":  # Mac
-    DATA_PATH = '/Users/gennosuke/Downloads/datasets'  # 環境に合わせて変える
-    LOG_PATH = '/Users/gennosuke/Downloads/logs'
+    DATA_PATH = '/Users/gennosuke/Downloads/研究/datasets'  # 環境に合わせて変える
+    LOG_PATH = '/Users/gennosuke/Downloads/研究/logs'
 elif pf == "Linux":  # Linux
     DATA_PATH = '/home/gennosuke/datasets'  # 環境に合わせて変える
     LOG_PATH = '/home/gennosuke/logs'
+
+def ex3_homo():
+    def img_rotate(img):  # 画像の回転
+        height = img.shape[0]
+        width = img.shape[1]
+        angle = 30  # 画像の回転する角度
+        center = (int(width/2), int(height/2))
+        trans = cv2.getRotationMatrix2D(center, angle, scale=1)
+        image = cv2.warpAffine(img, trans, (width, height))
+        return image
+    
+    MIN_MATCH_COUNT = 10
+    img_path = glob(join(DATA_PATH, "COCO", "val2014", '*'))
+    img1 = cv2.imread(img_path[1])
+    img2 = img_rotate(img1)
+
+    akaze = cv2.AKAZE_create()
+    kp1, des1 = akaze.detectAndCompute(img1, None)
+    kp2, des2 = akaze.detectAndCompute(img2, None)
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches = bf.match(des1, des2)
+    matches = sorted(matches, key=lambda x: x.distance)
+
+    if len(matches)>MIN_MATCH_COUNT:
+        src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
+        dst_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+
+        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 1.0)
+        inliers = mask.flatten()
+        in_matchesMask = mask.ravel().tolist()
+        outliers = 1 ^ mask.flatten()
+        out_matchesMask = 1 ^ np.array(mask.ravel().tolist())
+        np_matches = np.array(matches)
+        matches_in = np_matches[inliers == True]
+        matches_out = np_matches[inliers == False]
+        # print(matches_out)
+
+        h,w,_ = img1.shape
+        pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
+        dst = cv2.perspectiveTransform(pts,M)
+
+        img3 = cv2.polylines(img2,[np.int32(dst)],True,255,3, cv2.LINE_AA)
+
+    else:
+        print(f"Not enough matches are found - {len(matches)}/{MIN_MATCH_COUNT}")
+        matchesMask = None
+
+    # 対応する特徴点同士を描画
+
+    draw_params = dict(matchColor = (0,255,0), # draw matches in green color
+        singlePointColor = None,
+        matchesMask = in_matchesMask, # draw only inliers
+        flags = 2)
+
+    img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches,None,**draw_params)
+
+    draw_params = dict(matchColor = (255,0,0), # draw matches in green color
+        singlePointColor = None,
+        matchesMask = out_matchesMask, # draw only outliers
+        flags = 2)
+
+    img3 = cv2.drawMatches(img3, kp1, img2, kp2, matches, None,**draw_params)
+    plt.imshow(img3)
+    plt.show()
+
+
+def ex3_angle():
+    def img_rotate(img, angle):  # 画像の回転
+        height = img.shape[0]
+        width = img.shape[1]
+        center = (int(width/2), int(height/2))
+        trans = cv2.getRotationMatrix2D(center, angle, scale=1)
+        image = cv2.warpAffine(img, trans, (width, height))
+        return image, center
+    
+    def rotation(kp_list, r_axis, t, deg=True):
+
+        # 度数単位の角度をラジアンに変換
+        if deg == True:
+            t = np.deg2rad(t)
+        
+        
+        # xy = np.array(xy)
+        r_axis = np.array(r_axis)
+
+        # 回転行列
+        R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t),  np.cos(t)]])
+        rotation_list = []
+        for xy in kp_list:
+            rotation_list.append(np.dot(R, xy-r_axis)+r_axis)
+        
+        return np.array(rotation_list)
+        # return rotation_list
+    
+    MIN_MATCH_COUNT = 10
+    img_path = glob(join(DATA_PATH, "COCO", "val2014", '*'))
+    img1 = cv2.imread(img_path[1])
+    angle = 30
+    img2, center = img_rotate(img1, angle)
+
+    akaze = cv2.AKAZE_create()
+    kp1, des1 = akaze.detectAndCompute(img1, None)
+    kp2, des2 = akaze.detectAndCompute(img2, None)
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+    matches = bf.match(des1, des2)
+    matches = sorted(matches, key=lambda x: x.distance)
+
+    kp1_list = np.float32([kp1[m.queryIdx].pt for m in matches])
+    kp2_list = np.float32([kp2[m.trainIdx].pt for m in matches])
+    list = rotation(kp2_list, center, angle)
+    for a_kp, kp in zip(list, kp1_list):
+        cv2.circle(img1, (int(a_kp[0]), int(a_kp[1])), color=(255,0,0), radius=4, thickness=-1)
+        cv2.circle(img1, (int(kp[0]), int(kp[1])), color=(0,255,0), radius=4, thickness=-1)
+    plt.imshow(img1)
+    plt.show()
+
+    # img1 = cv2.imread(img_path[1])
+
+    # for kp in kp1_list:
+    #     cv2.circle(img1, (int(kp[0]), int(kp[1])), color=(0,255,0), radius=3, thickness=-1)
+    # plt.imshow(img1)
+    # plt.show()
+
+
 
 def ex3_beta():
     def img_rotate(img):  # 画像の回転
@@ -319,6 +444,9 @@ def main():
         ex1()
     elif args[1] == "ex3_b":
         ex3_beta()
+    elif args[1] == "ex3_d":
+        # ex3_dev()
+        ex3_angle()
 
 
 main()
