@@ -133,8 +133,9 @@ def ex3_angle():
         # return rotation_list
     
     MIN_MATCH_COUNT = 10
-    img_path = glob(join(DATA_PATH, "COCO", "val2014", '*'))
-    img1 = cv2.imread(img_path[1])
+    # img_path = glob(join(DATA_PATH, "COCO", "val2014", '*'))
+    img_path = glob(join(DATA_PATH, "CityScapes", "val", "*", "*"))
+    img1 = cv2.imread(img_path[0])
     angle = 30
     img2, center = img_rotate(img1, angle)
 
@@ -148,11 +149,22 @@ def ex3_angle():
     kp1_list = np.float32([kp1[m.queryIdx].pt for m in matches])
     kp2_list = np.float32([kp2[m.trainIdx].pt for m in matches])
     list = rotation(kp2_list, center, angle)
-    for a_kp, kp in zip(list, kp1_list):
-        cv2.circle(img1, (int(a_kp[0]), int(a_kp[1])), color=(255,0,0), radius=4, thickness=-1)
-        cv2.circle(img1, (int(kp[0]), int(kp[1])), color=(0,255,0), radius=4, thickness=-1)
-    plt.imshow(img1)
-    plt.show()
+
+    j = 0
+    while j != len(list)-1:
+        min = np.inf
+        kp1_index = 0
+        for i, kp1 in enumerate(kp1_list):
+            tmp = np.linalg.norm(list[j] - kp1_list[i])
+            if tmp < min:
+                min = tmp
+                kp1_index = i
+        j += 1
+    # for a_kp, kp in zip(list, kp1_list):
+    #     cv2.circle(img1, (int(a_kp[0]), int(a_kp[1])), color=(255,0,0), radius=4, thickness=-1)
+    #     cv2.circle(img1, (int(kp[0]), int(kp[1])), color=(0,255,0), radius=4, thickness=-1)
+    # plt.imshow(img1)
+    # plt.show()
 
     # img1 = cv2.imread(img_path[1])
 
