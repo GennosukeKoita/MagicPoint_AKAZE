@@ -27,81 +27,235 @@ from os.path import join, basename, splitext
 from glob import glob
 import sys
 import natsort
+from random import sample
 import pprint
 import matplotlib.pyplot as plt
+
+
+def img_rotate(img, angle):  # 画像の回転
+    height = img.shape[0]
+    width = img.shape[1]
+    center = (int(width/2), int(height/2))
+    trans = cv2.getRotationMatrix2D(center, angle, scale=1)
+    image = cv2.warpAffine(img, trans, (width, height))
+    return image, center
+
+def rotation(kp, r_axis, t, deg=True):
+    # 度数単位の角度をラジアンに変換
+    if deg == True:
+        t = np.deg2rad(t)
+    r_axis = np.array(r_axis)
+    # 回転行列
+    R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t),  np.cos(t)]])
+    return np.dot(R, kp-r_axis)+r_axis
 
 # OSの選択
 pf = platform.system()
 if pf == "Darwin":  # Mac
-    DATA_PATH = '/Users/gennosuke/Downloads/研究/datasets'  # 環境に合わせて変える
-    LOG_PATH = '/Users/gennosuke/Downloads/研究/logs'
+    DATA_PATH = '/Users/gennosuke/Downloads/datasets'  # 環境に合わせて変える
+    LOG_PATH = '/Users/gennosuke/Downloads/logs'
 elif pf == "Linux":  # Linux
     DATA_PATH = '/home/gennosuke/datasets'  # 環境に合わせて変える
     LOG_PATH = '/home/gennosuke/logs'
 
-def ex3_homo():
-    def img_rotate(img):  # 画像の回転
-        height = img.shape[0]
-        width = img.shape[1]
-        angle = 30  # 画像の回転する角度
-        center = (int(width/2), int(height/2))
-        trans = cv2.getRotationMatrix2D(center, angle, scale=1)
-        image = cv2.warpAffine(img, trans, (width, height))
-        return image
+
+def ex3_sp_dataset():
+    tasks = {'train': ['training', 44800], 'val': ['validation', 6400]}
+    # COCO(Superpoint):ディレクトリの構築
+    coco_dataset_path = join(DATA_PATH, "ex3_coco")
+    makedirs(coco_dataset_path, exist_ok=True)
+    for key, value in tasks.items():
+        # COCO(Superpoint):ディレクトリの構築
+        coco_key_path = join(coco_dataset_path, f'{key}2014')
+        makedirs(coco_key_path, exist_ok=True)
+        img_paths = glob(join(DATA_PATH, 'CityScapes', key, '*', '*'))
+        for path in tqdm(img_paths):
+            # COCO(Superpoint):元画像の保存
+            o_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+            filename = basename(path)
+            cv2.imwrite(join(coco_key_path, filename), o_img)
+
+def ex3_coco(dataset:str, angle: int, mag=None, resize_height=None, resize_width=None):
+    tasks = {'train': ['training', 44800], 'val': ['validation', 6400]}
+    NORM_THESHOLD = 1
+
+    print("ディレクトリの構成中")
+    if dataset == "coco":
+        mpd_path = join(
+            DATA_PATH,
+            f'ex3_magicpoint_dataset_mag:{mag}_angle:{angle}'
+        )  # magicpoint用のデータセット
+    elif dataset == "city":
+        # magicpoint:ディレクトリの構築
+        mpd_path = join(
+            DATA_PATH, 
+            f'ex3_magicpoint_dataset_{angle}_height{resize_height}_width_{resize_width}'
+        )  # magicpoint用のデータセット
+    makedirs(mpd_path, exist_ok=True)
+    mpd_path2 = join(mpd_path, "city_scapes")
+    makedirs(mpd_path2, exist_ok=True)
+    mp_dirs = []
+    for ip in ["images", "points"]:
+        mp_dirs.append(join(mpd_path2, ip))
+        makedirs(join(mpd_path2, ip), exist_ok=True)
     
-    MIN_MATCH_COUNT = 10
-    img_path = glob(join(DATA_PATH, "COCO", "val2014", '*'))
-    img1 = cv2.imread(img_path[1])
-    img2 = img_rotate(img1)
+    # COCO(Superpoint):ディレクトリの構築
+    # coco_dataset_path = join(DATA_PATH, "ex3_coco")
+    # makedirs(coco_dataset_path, exist_ok=True)
 
-    akaze = cv2.AKAZE_create()
-    kp1, des1 = akaze.detectAndCompute(img1, None)
-    kp2, des2 = akaze.detectAndCompute(img2, None)
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
-    matches = bf.match(des1, des2)
-    matches = sorted(matches, key=lambda x: x.distance)
+    for key, value in tasks.items():
+        # magicpoint:ディレクトリの構築
+        mp_key_path = join(mp_dirs[0], value[0])
+        makedirs(mp_key_path, exist_ok=True)
+        mp_value_path = join(mp_dirs[1], value[0])
+        makedirs(mp_value_path, exist_ok=True)
 
-    if len(matches)>MIN_MATCH_COUNT:
-        src_pts = np.float32([kp1[m.queryIdx].pt for m in matches]).reshape(-1,1,2)
-        dst_pts = np.float32([kp2[m.trainIdx].pt for m in matches]).reshape(-1,1,2)
+        # COCO(Superpoint):ディレクトリの構築
+        # coco_key_path = join(coco_dataset_path, f'{key}2014')
+        # makedirs(coco_key_path, exist_ok=True)
+        print(f'{key}:ディレクトリの構成完了')
 
-        M, mask = cv2.findHomography(src_pts, dst_pts, cv2.RANSAC, 1.0)
-        inliers = mask.flatten()
-        in_matchesMask = mask.ravel().tolist()
-        outliers = 1 ^ mask.flatten()
-        out_matchesMask = 1 ^ np.array(mask.ravel().tolist())
-        np_matches = np.array(matches)
-        matches_in = np_matches[inliers == True]
-        matches_out = np_matches[inliers == False]
-        # print(matches_out)
+        if dataset == "coco":
+            img_paths = natsort.natsorted(
+                glob(join(DATA_PATH, 'COCO', f'{key}2014', '*')))[:value[1]]
+        elif dataset == "city":
+            img_paths = glob(join(DATA_PATH, 'CityScapes', key, '*', '*'))
+        print(f'{key}:magicpoint, superpoint用の画像')
+        for path in tqdm(img_paths):
+            # 画像の読み込み
+            o_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+            mp_img = cv2.resize(o_img, (160, 120)) # magicpoint:画像の読み込みとリサイズ
+            sp_img = o_img # superpoint:画像の読み込み
+            if dataset == "coco":
+                resize_height = o_img.shape[0] * mag
+                resize_width = o_img.shape[1] * mag
+            img1 = cv2.resize(o_img, (resize_width, resize_height))
+            img2, center = img_rotate(img1, angle)
 
-        h,w,_ = img1.shape
-        pts = np.float32([ [0,0],[0,h-1],[w-1,h-1],[w-1,0] ]).reshape(-1,1,2)
-        dst = cv2.perspectiveTransform(pts,M)
+            # akazeの実行
+            akaze = cv2.AKAZE_create()
+            kp1, des1 = akaze.detectAndCompute(img1, None)
+            kp2, des2 = akaze.detectAndCompute(img2, None)
+            bf = cv2.BFMatcher(NORM_HAMMING, crossCheck=True)
+            matches = bf.match(des1, des2)
+            matches = sorted(matches, key=lambda x: x.distance)
 
-        img3 = cv2.polylines(img2,[np.int32(dst)],True,255,3, cv2.LINE_AA)
+            # マッチングした特徴点同士の二点間距離を計算する、
+            # 条件として、
+            # ①アフィン変換していない画像の特徴点は何にもしない
+            # ②アフィン変換した画像の特徴点は画像中心周りに時計回りにθ度回転移動させた特徴点を使用
+            # ③①、②の特徴点の二点間距離を計算する
+            pnts = []
+            for m in matches:
+                kp_1 = kp1[m.queryIdx].pt
+                kp_2 = rotation(kp2[m.trainIdx].pt, center, angle)
+                distance = np.linalg.norm(kp_1-kp_2)
+                if distance <= NORM_THESHOLD:
+                    pnts.append([kp_1[1], kp_1[0]])
 
-    else:
-        print(f"Not enough matches are found - {len(matches)}/{MIN_MATCH_COUNT}")
-        matchesMask = None
+            if len(pnts) != 0: 
+                pnts = np.array(pnts)
+                pnts[:, 0] = pnts[:, 0] * 120 / resize_height
+                pnts[:, 1] = pnts[:, 1] * 160 / resize_width
+                pnts = np.round(pnts, decimals=3)
 
-    # 対応する特徴点同士を描画
+                filename = basename(path)
+                # magicpoint:リサイズした元画像の保存と選択特徴点の位置座標の保存
+                cv2.imwrite(join(mp_key_path, filename), mp_img)
+                np.save(join(mp_value_path, f'{splitext(filename)[0]}.npy'), pnts)
 
-    draw_params = dict(matchColor = (0,255,0), # draw matches in green color
-        singlePointColor = None,
-        matchesMask = in_matchesMask, # draw only inliers
-        flags = 2)
+            # COCO(Superpoint):元画像の保存
+            # cv2.imwrite(join(coco_key_path, filename), sp_img)
+            
+        print(f'{key}:magicpoint, superpoint用の画像の保存完了')
 
-    img3 = cv2.drawMatches(img1,kp1,img2,kp2,matches,None,**draw_params)
+def ex3_city(resize_height: int, resize_width: int):
 
-    draw_params = dict(matchColor = (255,0,0), # draw matches in green color
-        singlePointColor = None,
-        matchesMask = out_matchesMask, # draw only outliers
-        flags = 2)
+    def select_imgs(tasks):
+        img_paths = glob(join(DATA_PATH, 'CityScapes', '*', '*', '*'))
+        for key, value in tasks.items():
+            paths = sample(img_paths, value[1])
+            value.append(paths)
+            img_paths = [i for i in img_paths if i not in paths]
+        return tasks
+    
+    def save_pathces_imgs(array):
+        save_path = join(DATA_PATH, 'city_pathces')
+        makedirs(save_path, exist_ok=True)
+        for path in array[2]:
+            img = cv2.imread(path)
+            filename = basename(path)
+            cv2.imwrite(join(save_path, filename), img)
 
-    img3 = cv2.drawMatches(img3, kp1, img2, kp2, matches, None,**draw_params)
-    plt.imshow(img3)
-    plt.show()
+
+    tasks = {'train': ['training', 4400], 'val': ['validation', 500], 'test': ['test', 100]}
+    angles = [30, 45, 60, 90]
+    NORM_THESHOLD = 10
+    tasks = select_imgs(tasks)
+    save_pathces_imgs(tasks['test'])
+    for angle in angles:
+        print("ディレクトリの構成中")
+        # magicpoint:ディレクトリの構築
+        mpd_path1 = join(DATA_PATH, f'ex3_mp_city_{angle}_height{resize_height}_width_{resize_width}')  # magicpoint用のデータセット
+        makedirs(mpd_path1, exist_ok=True)
+        mpd_path2 = join(mpd_path1, "city_scapes")
+        makedirs(mpd_path2, exist_ok=True)
+        mp_dirs = []
+        for ip in ["images", "points"]:
+            mp_dirs.append(join(mpd_path2, ip))
+            makedirs(join(mpd_path2, ip), exist_ok=True)
+        
+
+        for key, value in tasks.items():
+            if key == 'test': break
+            # magicpoint:ディレクトリの構築
+            mp_key_path = join(mp_dirs[0], value[0])
+            makedirs(mp_key_path, exist_ok=True)
+            mp_value_path = join(mp_dirs[1], value[0])
+            makedirs(mp_value_path, exist_ok=True)
+            print(f'{key}:ディレクトリの構成完了')
+
+            print(f'{key}:magicpoint, superpoint用の画像')
+            for path in tqdm(value[2]):
+                # 画像の読み込み
+                o_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+                mp_img = cv2.resize(o_img, (160, 120)) # magicpoint:画像の読み込みとリサイズ
+                img1 = cv2.resize(o_img, (resize_width, resize_height))
+                img2, center = img_rotate(img1, angle)
+
+                # akazeの実行
+                akaze = cv2.AKAZE_create()
+                kp1, des1 = akaze.detectAndCompute(img1, None)
+                kp2, des2 = akaze.detectAndCompute(img2, None)
+                bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+                matches = bf.match(des1, des2)
+                matches = sorted(matches, key=lambda x: x.distance)
+
+                # マッチングした特徴点同士の二点間距離を計算する、
+                # 条件として、
+                # ①アフィン変換していない画像の特徴点は何にもしない
+                # ②アフィン変換した画像の特徴点は画像中心周りに時計回りにθ度回転移動させた特徴点を使用
+                # ③①、②の特徴点の二点間距離を計算する
+                pnts = []
+                for m in matches:
+                    kp_1 = kp1[m.queryIdx].pt
+                    kp_2 = rotation(kp2[m.trainIdx].pt, center, angle)
+                    distance = np.linalg.norm(kp_1-kp_2)
+                    if distance <= NORM_THESHOLD:
+                        pnts.append([kp_1[1], kp_1[0]])
+
+                if len(pnts) != 0: 
+                    pnts = np.array(pnts)
+                    pnts[:, 0] = pnts[:, 0] * 120 / resize_height
+                    pnts[:, 1] = pnts[:, 1] * 160 / resize_width
+                    pnts = np.round(pnts, decimals=3)
+
+                    filename = basename(path)
+                    # magicpoint:リサイズした元画像の保存と選択特徴点の位置座標の保存
+                    cv2.imwrite(join(mp_key_path, filename), mp_img)
+                    np.save(join(mp_value_path, f'{splitext(filename)[0]}.npy'), pnts)
+                
+            print(f'{key}:magicpoint, superpoint用の画像の保存完了')
 
 
 def ex3_angle():
@@ -113,29 +267,20 @@ def ex3_angle():
         image = cv2.warpAffine(img, trans, (width, height))
         return image, center
     
-    def rotation(kp_list, r_axis, t, deg=True):
+    def rotation(kp, r_axis, t, deg=True):
 
         # 度数単位の角度をラジアンに変換
         if deg == True:
             t = np.deg2rad(t)
-        
-        
-        # xy = np.array(xy)
         r_axis = np.array(r_axis)
 
         # 回転行列
         R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t),  np.cos(t)]])
-        rotation_list = []
-        for xy in kp_list:
-            rotation_list.append(np.dot(R, xy-r_axis)+r_axis)
         
-        return np.array(rotation_list)
-        # return rotation_list
+        return np.dot(R, kp-r_axis)+r_axis
     
-    MIN_MATCH_COUNT = 10
-    # img_path = glob(join(DATA_PATH, "COCO", "val2014", '*'))
-    img_path = glob(join(DATA_PATH, "CityScapes", "val", "*", "*"))
-    img1 = cv2.imread(img_path[0])
+    img_paths = glob(join(DATA_PATH, 'CityScapes', "train", '*', '*'))
+    img1 = cv2.resize(cv2.imread(img_paths[0]), (1024, 512))
     angle = 30
     img2, center = img_rotate(img1, angle)
 
@@ -146,203 +291,153 @@ def ex3_angle():
     matches = bf.match(des1, des2)
     matches = sorted(matches, key=lambda x: x.distance)
 
-    kp1_list = np.float32([kp1[m.queryIdx].pt for m in matches])
-    kp2_list = np.float32([kp2[m.trainIdx].pt for m in matches])
-    list = rotation(kp2_list, center, angle)
+    plot_match = True
+    plot_before = True
+    plot_after = True
+    # 対応する特徴点同士を描画
+    img3 = cv2.drawMatches(img1, kp1, img2, kp2, matches, None, flags=2)
+    if plot_match:
+        plt.imshow(img3)
+        plt.show()
 
-    j = 0
-    while j != len(list)-1:
-        min = np.inf
-        kp1_index = 0
-        for i, kp1 in enumerate(kp1_list):
-            tmp = np.linalg.norm(list[j] - kp1_list[i])
-            if tmp < min:
-                min = tmp
-                kp1_index = i
-        j += 1
-    # for a_kp, kp in zip(list, kp1_list):
-    #     cv2.circle(img1, (int(a_kp[0]), int(a_kp[1])), color=(255,0,0), radius=4, thickness=-1)
-    #     cv2.circle(img1, (int(kp[0]), int(kp[1])), color=(0,255,0), radius=4, thickness=-1)
-    # plt.imshow(img1)
-    # plt.show()
+    # アフィン変換していないもの
+    for kp in [kp1[m.queryIdx].pt for m in matches]:
+        cv2.circle(img1, (int(kp[0]), int(kp[1])), color=(255,0,0), radius=3, thickness=-1)
+    if plot_before:
+        plt.imshow(img1)
+        plt.show()
 
-    # img1 = cv2.imread(img_path[1])
+    # アフィン変換しているもの
+    for kp in [kp2[m.trainIdx].pt for m in matches]:
+        cv2.circle(img2, (int(kp[0]), int(kp[1])), color=(255,0,0), radius=3, thickness=-1)
+    if plot_before:
+        plt.imshow(img2)
+        plt.show()
 
-    # for kp in kp1_list:
-    #     cv2.circle(img1, (int(kp[0]), int(kp[1])), color=(0,255,0), radius=3, thickness=-1)
-    # plt.imshow(img1)
-    # plt.show()
+    for m in matches:
+        kp_1 = kp1[m.queryIdx].pt
+        kp_2 = rotation(kp2[m.trainIdx].pt, center, angle)
+        distance = np.linalg.norm(kp_1-kp_2)
+        if distance <= 1:
+            cv2.circle(img1, (int(kp_1[0]), int(kp_1[1])), color=(0,0,255), radius=3, thickness=-1)
+    
+    if plot_after:
+        plt.imshow(img1)
+        plt.show()
 
-
-
-def ex3_beta():
-    def img_rotate(img):  # 画像の回転
+def ex3(dataset:str, angle: int, mag=None, resize_height=None, resize_width=None):
+    def img_rotate(img, angle):  # 画像の回転
         height = img.shape[0]
         width = img.shape[1]
-        angle = 30  # 画像の回転する角度
         center = (int(width/2), int(height/2))
         trans = cv2.getRotationMatrix2D(center, angle, scale=1)
         image = cv2.warpAffine(img, trans, (width, height))
-        return image
+        return image, center
+    
+    def rotation(kp, r_axis, t, deg=True):
 
-    tasks = {'train': 'training', 'val': 'validation'}
+        # 度数単位の角度をラジアンに変換
+        if deg == True:
+            t = np.deg2rad(t)
+        r_axis = np.array(r_axis)
+
+        # 回転行列
+        R = np.array([[np.cos(t), -np.sin(t)], [np.sin(t),  np.cos(t)]])
+        
+        return np.dot(R, kp-r_axis)+r_axis
+
+    tasks = {'train': ['training', 44800], 'val': ['validation', 6400]}
+    NORM_THESHOLD = 1
 
     print("ディレクトリの構成中")
-    
-    # magicpoint:ディレクトリの構築
-    mp_dataset_path = join(DATA_PATH, "ex3_magicpoint_dataset")  # magicpoint用のデータセット
-    makedirs(mp_dataset_path, exist_ok=True)
-    mp_second_dataset_path = join(mp_dataset_path, "city_scapes")
-    makedirs(mp_second_dataset_path, exist_ok=True)
+    if dataset == "coco":
+        mpd_path = join(
+            DATA_PATH,
+            f'ex3_magicpoint_dataset_mag:{mag}_angle:{angle}'
+        )  # magicpoint用のデータセット
+    elif dataset == "city":
+        # magicpoint:ディレクトリの構築
+        mpd_path = join(
+            DATA_PATH, 
+            f'ex3_magicpoint_dataset_{angle}_height{resize_height}_width_{resize_width}'
+        )  # magicpoint用のデータセット
+    makedirs(mpd_path, exist_ok=True)
+    mpd_path2 = join(mpd_path, "city_scapes")
+    makedirs(mpd_path2, exist_ok=True)
     mp_dirs = []
     for ip in ["images", "points"]:
-        mp_dirs.append(join(mp_second_dataset_path, ip))
-        makedirs(join(mp_second_dataset_path, ip), exist_ok=True)
+        mp_dirs.append(join(mpd_path2, ip))
+        makedirs(join(mpd_path2, ip), exist_ok=True)
     
     # COCO(Superpoint):ディレクトリの構築
-    coco_dataset_path = join(DATA_PATH, "ex3_unet_coco")
-    makedirs(coco_dataset_path, exist_ok=True)
+    # coco_dataset_path = join(DATA_PATH, "ex3_coco")
+    # makedirs(coco_dataset_path, exist_ok=True)
 
     for key, value in tasks.items():
         # magicpoint:ディレクトリの構築
-        mp_key_path = join(mp_dirs[0], value)
+        mp_key_path = join(mp_dirs[0], value[0])
         makedirs(mp_key_path, exist_ok=True)
-        mp_value_path = join(mp_dirs[1], value)
+        mp_value_path = join(mp_dirs[1], value[0])
         makedirs(mp_value_path, exist_ok=True)
 
         # COCO(Superpoint):ディレクトリの構築
-        coco_key_path = join(coco_dataset_path, f'{key}2014')
-        makedirs(coco_key_path, exist_ok=True)
+        # coco_key_path = join(coco_dataset_path, f'{key}2014')
+        # makedirs(coco_key_path, exist_ok=True)
         print(f'{key}:ディレクトリの構成完了')
 
-        img_paths = glob(join(DATA_PATH, 'CityScapes', key, '*', '*'))
-        print(f'{key}:magicpoint, superpoint用の画像、マスク画像の保存中')
+        if dataset == "coco":
+            img_paths = natsort.natsorted(
+                glob(join(DATA_PATH, 'COCO', f'{key}2014', '*')))[:value[1]]
+        elif dataset == "city":
+            img_paths = glob(join(DATA_PATH, 'CityScapes', key, '*', '*'))
+        print(f'{key}:magicpoint, superpoint用の画像')
         for path in tqdm(img_paths):
             # 画像の読み込み
-            original_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
-            mp_img = cv2.resize(original_img, (160, 120)) # magicpoint:画像の読み込みとリサイズ
-            sp_img = original_img # superpoint:画像の読み込み
-            img1 = cv2.resize(original_img, (1048, 512))
-            width, height = img1.shape[1], img1.shape[0]
-            img2 = img_rotate(img1)
+            o_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+            mp_img = cv2.resize(o_img, (160, 120)) # magicpoint:画像の読み込みとリサイズ
+            sp_img = o_img # superpoint:画像の読み込み
+            if dataset == "coco":
+                resize_height = o_img.shape[0] * mag
+                resize_width = o_img.shape[1] * mag
+            img1 = cv2.resize(o_img, (resize_width, resize_height))
+            img2, center = img_rotate(img1, angle)
 
             # akazeの実行
             akaze = cv2.AKAZE_create()
             kp1, des1 = akaze.detectAndCompute(img1, None)
             kp2, des2 = akaze.detectAndCompute(img2, None)
-            bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
+            bf = cv2.BFMatcher(NORM_HAMMING, crossCheck=True)
             matches = bf.match(des1, des2)
             matches = sorted(matches, key=lambda x: x.distance)
 
-            kp_list = []
-            for match in matches:
-                x = kp1[match.queryIdx].pt[0] * 160 / width
-                y = kp1[match.queryIdx].pt[1] * 120 / height
-                kp_list.append([x, y])
-            kp_list = np.round(np.array(kp_list), decimals=3)
+            # マッチングした特徴点同士の二点間距離を計算する、
+            # 条件として、
+            # ①アフィン変換していない画像の特徴点は何にもしない
+            # ②アフィン変換した画像の特徴点は画像中心周りに時計回りにθ度回転移動させた特徴点を使用
+            # ③①、②の特徴点の二点間距離を計算する
+            pnts = []
+            for m in matches:
+                kp_1 = kp1[m.queryIdx].pt
+                kp_2 = rotation(kp2[m.trainIdx].pt, center, angle)
+                distance = np.linalg.norm(kp_1-kp_2)
+                if distance <= NORM_THESHOLD:
+                    pnts.append([kp_1[1], kp_1[0]])
 
-            filename = basename(path)
-            # magicpoint:リサイズした元画像の保存と選択特徴点の位置座標の保存
-            cv2.imwrite(join(mp_key_path, filename), mp_img)
-            np.save(join(mp_value_path, splitext(filename)[0]+'.npy'), kp_list)
+            if len(pnts) != 0: 
+                pnts = np.array(pnts)
+                pnts[:, 0] = pnts[:, 0] * 120 / resize_height
+                pnts[:, 1] = pnts[:, 1] * 160 / resize_width
+                pnts = np.round(pnts, decimals=3)
 
-            # COCO(Superpoint):元画像の保存
-            cv2.imwrite(join(coco_key_path, filename), sp_img)
-        print(f'{key}:magicpoint, superpoint用の画像、マスク画像の保存完了')
-
-def ex3():
-    def img_rotate(img):  # 画像の回転
-        height = img.shape[0]
-        width = img.shape[1]
-        angle = 30  # 画像の回転する角度
-        center = (int(width/2), int(height/2))
-        trans = cv2.getRotationMatrix2D(center, angle, scale=1)
-        image = cv2.warpAffine(img, trans, (width, height))
-        return image
-
-    tasks = {'train': 'training', 'val': 'validation'}
-
-    print("ディレクトリの構成中")
-
-    # unet:ディレクトリの構築
-    dataset_path = join(DATA_PATH, "unet_dataset")
-    makedirs(dataset_path, exist_ok=True)
-    im_dirs = []
-    for im in ["imgs", "masks"]:
-        im_dirs.append(join(dataset_path, im))
-        makedirs(join(dataset_path, im), exist_ok=True)
-    
-    # magicpoint:ディレクトリの構築
-    mp_dataset_path = join(DATA_PATH, "ex3_magicpoint_dataset")  # magicpoint用のデータセット
-    makedirs(mp_dataset_path, exist_ok=True)
-    mp_second_dataset_path = join(mp_dataset_path, "city_scapes")
-    makedirs(mp_second_dataset_path, exist_ok=True)
-    mp_dirs = []
-    for ip in ["images", "points"]:
-        mp_dirs.append(join(mp_second_dataset_path, ip))
-        makedirs(join(mp_second_dataset_path, ip), exist_ok=True)
-    
-    # COCO(Superpoint):ディレクトリの構築
-    coco_dataset_path = join(DATA_PATH, "ex3_unet_coco")
-    makedirs(coco_dataset_path, exist_ok=True)
-
-    for key, value in tasks.items():
-        # magicpoint:ディレクトリの構築
-        mp_key_path = join(mp_dirs[0], value)
-        makedirs(mp_key_path, exist_ok=True)
-        mp_value_path = join(mp_dirs[1], value)
-        makedirs(mp_value_path, exist_ok=True)
-
-        # COCO(Superpoint):ディレクトリの構築
-        coco_key_path = join(coco_dataset_path, f'{key}2014')
-        makedirs(coco_key_path, exist_ok=True)
-        print(f'{key}:ディレクトリの構成完了')
-
-        img_paths = glob(join(DATA_PATH, 'CityScapes', key, '*', '*'))
-        print(f'{key}:magicpoint, superpoint用の画像、マスク画像の保存中')
-        for path in tqdm(img_paths):
-            # 画像の読み込み
-            original_img = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
-            mp_img = cv2.resize(original_img, (160, 120)) # magicpoint:画像の読み込みとリサイズ
-            sp_img = original_img # superpoint:画像の読み込み
-            unet_img1 = cv2.resize(original_img, (512, 256)) # unet:画像の読み込みとリサイズ
-            width, height = unet_img1.shape[1], unet_img1.shape[0]
-            unet_img2 = img_rotate(unet_img1)
-
-            # akazeの実行
-            akaze = cv2.AKAZE_create()
-            kp1, des1 = akaze.detectAndCompute(unet_img1, None)
-            kp2, des2 = akaze.detectAndCompute(unet_img2, None)
-            bf = cv2.BFMatcher()
-            matches = bf.match(des1, des2)
-            matches = sorted(matches, key=lambda x: x.distance)
-
-            # マスク画像の作成
-            mask_size = (height, width)
-            mask_img = np.zeros(mask_size, dtype=np.uint8)
-            for match in matches:
-
-                x, y = int(kp1[match.queryIdx].pt[0]), int(kp1[match.queryIdx].pt[1])
-                cv2.rectangle(
-                    mask_img,
-                    (x-3, y-3),
-                    (x+3, y+3),
-                    color=(255, 255, 255),
-                    thickness=-1
-                )
-
-            filename = basename(path)
-            # magicpoint:リサイズした元画像の保存と選択特徴点の位置座標の保存
-            cv2.imwrite(join(mp_key_path, filename), mp_img)
+                filename = basename(path)
+                # magicpoint:リサイズした元画像の保存と選択特徴点の位置座標の保存
+                cv2.imwrite(join(mp_key_path, filename), mp_img)
+                np.save(join(mp_value_path, f'{splitext(filename)[0]}.npy'), pnts)
 
             # COCO(Superpoint):元画像の保存
-            cv2.imwrite(join(coco_key_path, filename), sp_img)
+            # cv2.imwrite(join(coco_key_path, filename), sp_img)
             
-            # 元画像の保存
-            cv2.imwrite(join(im_dirs[0], filename), unet_img1)
-            # マスク画像の保存
-            cv2.imwrite(join(im_dirs[1], filename), mask_img)
-        print(f'{key}:unet, magicpoint, superpoint用の画像、マスク画像の保存完了')
+        print(f'{key}:magicpoint, superpoint用の画像の保存完了')
 
 
 def ex2():
@@ -429,12 +524,12 @@ def ex1():
             makedirs(data_path, exist_ok=True)
 
     # データセットの作成と保存
-    tasks = {'training': "train2014", 'validation': "val2014"}
+    tasks = {'training': ["train2014", 44800], 'validation': ["val2014", 6400]}
     for key, value in tasks.items():
-        coco_path = join(DATA_PATH, 'COCO', value, '*')
+        coco_path = join(DATA_PATH, 'COCO', value[0], '*')
         save_img_path = join(base_path, 'images', key)
         save_pnt_path = join(base_path, 'points', key)
-        coco_img_paths = natsort.natsorted(glob(coco_path))
+        coco_img_paths = natsort.natsorted(glob(coco_path))[:value[1]]
         for path in tqdm(coco_img_paths):
             basename_without_ext = splitext(basename(path))[0]
             img = cv2.imread(path)
@@ -449,16 +544,15 @@ def ex1():
 def main():
     args = sys.argv
     if args[1] == "ex3":
-        ex3()
+        ex3(str(args[2]), int(args[3]), int(args[4]), int(args[5]), int(args[6]))
     elif args[1] == "ex2":
         ex2()
     elif args[1] == "ex1":
         ex1()
-    elif args[1] == "ex3_b":
-        ex3_beta()
     elif args[1] == "ex3_d":
         # ex3_dev()
         ex3_angle()
 
 
-main()
+# main()
+ex3_city(512, 1024)
